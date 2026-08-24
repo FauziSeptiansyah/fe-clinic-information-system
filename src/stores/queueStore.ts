@@ -44,6 +44,7 @@ export const useQueueStore = create<QueueState>((set, get) => ({
             ...q,
             status,
             calledAt: status === "CALLED" ? now : q.calledAt,
+            callCount: status === "CALLED" ? (q.callCount || 0) + 1 : q.callCount,
             serviceStartedAt: status === "IN_SERVICE" ? now : q.serviceStartedAt,
             completedAt: status === "COMPLETED" ? now : q.completedAt,
           };

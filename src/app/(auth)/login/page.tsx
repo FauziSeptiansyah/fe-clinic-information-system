@@ -14,7 +14,11 @@ import { Building2, Lock, Mail, ArrowLeft, ShieldCheck, Clock, MapPin, Stethosco
 import { toast } from "sonner";
 import { ROUTES } from "@/config/routes";
 import { ClinicHero } from "@/components/illustrations/ClinicHero";
-import { MOCK_CLINIC_PROFILE } from "@/mocks";
+import { MOCK_CLINIC_PROFILE, MOCK_PATIENTS } from "@/mocks";
+import { Patient } from "@/types";
+import { UserRound } from "lucide-react";
+
+const DEMO_PATIENTS = MOCK_PATIENTS.filter((p) => ["pat-07", "pat-01"].includes(p.id));
 
 export default function LoginPage() {
   const router = useRouter();
@@ -64,6 +68,13 @@ export default function LoginPage() {
     switchRole(selectedUser.role);
     toast.success(`Masuk sebagai: ${selectedUser.name} (${selectedUser.role})`);
     router.push(ROUTES.DASHBOARD);
+  };
+
+  const handleQuickPatientLogin = (selectedPatient: Patient) => {
+    setEmail(selectedPatient.email || "");
+    loginPatient(selectedPatient);
+    toast.success(`Masuk sebagai pasien: ${selectedPatient.fullName}`);
+    router.push(ROUTES.PUBLIC.TAKE_QUEUE);
   };
 
   return (
@@ -197,6 +208,27 @@ export default function LoginPage() {
                   >
                     <span className="text-[11px] font-bold text-slate-800 truncate">{u.role}</span>
                     <span className="text-[10px] text-slate-500 truncate">{u.name.split(",")[0]}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Quick Demo Patient Login */}
+            <div className="pt-4 border-t border-slate-200">
+              <div className="flex items-center gap-1.5 mb-2 text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                <UserRound className="h-3.5 w-3.5 text-blue-600" />
+                Akses Cepat Pengujian (Pasien)
+              </div>
+              <div className="grid grid-cols-2 gap-1.5">
+                {DEMO_PATIENTS.map((p) => (
+                  <button
+                    key={p.id}
+                    type="button"
+                    onClick={() => handleQuickPatientLogin(p)}
+                    className="flex flex-col text-left p-2 rounded border border-slate-200 hover:border-blue-400 hover:bg-blue-50 transition-colors"
+                  >
+                    <span className="text-[11px] font-bold text-slate-800 truncate">{p.fullName}</span>
+                    <span className="text-[10px] text-slate-500 truncate">{p.mrNumber}</span>
                   </button>
                 ))}
               </div>

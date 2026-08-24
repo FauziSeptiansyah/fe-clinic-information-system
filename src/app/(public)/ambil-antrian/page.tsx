@@ -5,19 +5,30 @@ import Link from "next/link";
 import { Building2, ArrowLeft, Ticket, LogIn, UserPlus, LogOut } from "lucide-react";
 import { LoadingState } from "@/components/common/LoadingState";
 import { RegistrationForm } from "@/features/registrations/RegistrationForm";
-import { UserAvatar } from "@/components/common/Displays";
+import { UserAvatar, DetailCard, DetailRow } from "@/components/common/Displays";
+import { PatientQueueStatus } from "@/components/queue/PatientQueueStatus";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { ROUTES } from "@/config/routes";
 import { MOCK_CLINIC_PROFILE } from "@/mocks";
 import { usePatientAuthStore } from "@/stores/patientAuthStore";
-import { patientService } from "@/services";
+import { patientService, queueService } from "@/services";
+import { useQueueStore } from "@/stores/queueStore";
+import { Queue } from "@/types";
 import { toast } from "sonner";
+
+const ACTIVE_STATUSES = new Set(["WAITING", "CALLED", "IN_SERVICE"]);
 
 export default function SelfServiceQueuePage() {
   const patient = usePatientAuthStore((s) => s.patient);
   const logoutPatient = usePatientAuthStore((s) => s.logoutPatient);
   const [sessionChecked, setSessionChecked] = React.useState(false);
+
+  const setQueues = useQueueStore((s) => s.setQueues);
+  const queues = useQueueStore((s) => s.queues);
+  const myActiveQueue: Queue | undefined = patient
+    ? queues.find((q) => q.patientId === patient.id && ACTIVE_STATUSES.has(q.status))
+    : undefined;
 
   React.useEffect(() => {
     let cancelled = false;
@@ -39,6 +50,11 @@ export default function SelfServiceQueuePage() {
     // Only re-check when the logged-in patient identity changes, not on every store re-render.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [patient?.id]);
+
+  React.useEffect(() => {
+    if (!patient) return;
+    queueService.getAll().then(setQueues);
+  }, [patient, setQueues]);
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 selection:bg-blue-600 selection:text-white">
@@ -90,27 +106,53 @@ export default function SelfServiceQueuePage() {
         {!sessionChecked ? (
           <LoadingState title="Memeriksa sesi..." />
         ) : patient ? (
-          <>
-            <Card className="border-emerald-200 bg-emerald-50/50">
-              <CardContent className="p-4 flex items-center gap-3">
-                <UserAvatar name={patient.fullName} size="lg" />
-                <div>
-                  <p className="text-sm font-bold text-slate-900">Masuk sebagai {patient.fullName}</p>
-                  <p className="text-xs text-slate-600">No RM: <span className="font-mono font-semibold">{patient.mrNumber}</span></p>
-                </div>
-              </CardContent>
-            </Card>
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+            <div className="lg:col-span-7 space-y-6">
+              <Card className="border-emerald-200 bg-emerald-50/50">
+                <CardContent className="p-4 flex items-center gap-3">
+                  <UserAvatar name={patient.fullName} size="lg" />
+                  <div>
+                    <p className="text-sm font-bold text-slate-900">Masuk sebagai {patient.fullName}</p>
+                    <p className="text-xs text-slate-600">No RM: <span className="font-mono font-semibold">{patient.mrNumber}</span></p>
+                  </div>
+                </CardContent>
+              </Card>
 
-            <React.Suspense fallback={<LoadingState title="Memuat formulir antrian..." />}>
-              <RegistrationForm
-                cancelHref={ROUTES.PUBLIC.HOME}
-                continueHref={ROUTES.QUEUES.DISPLAY}
-                continueLabel="Lihat Layar Antrian"
-                allowNewPatient={false}
-                fixedPatient={patient}
-              />
-            </React.Suspense>
-          </>
+              <DetailCard title="Data Diri Anda" description="Data yang tersimpan di rekam medis Anda.">
+                <DetailRow label="Nama Lengkap" value={patient.fullName} />
+                <DetailRow label="NIK" value={patient.nik} />
+                <DetailRow label="Tanggal Lahir" value={patient.birthDate} />
+                <DetailRow label="Nomor HP" value={patient.phone} />
+                <DetailRow label="Email" value={patient.email || "-"} />
+                <DetailRow label="Alamat" value={patient.address} />
+                <DetailRow label="Penjamin" value={patient.payer} />
+              </DetailCard>
+
+              {!myActiveQueue && (
+                <React.Suspense fallback={<LoadingState title="Memuat formulir antrian..." />}>
+                  <RegistrationForm
+                    cancelHref={ROUTES.PUBLIC.HOME}
+                    continueHref={ROUTES.QUEUES.DISPLAY}
+                    continueLabel="Lihat Layar Antrian"
+                    allowNewPatient={false}
+                    fixedPatient={patient}
+                  />
+                </React.Suspense>
+              )}
+            </div>
+
+            <div className="lg:col-span-5 lg:sticky lg:top-24">
+              {myActiveQueue ? (
+                <PatientQueueStatus myQueue={myActiveQueue} />
+              ) : (
+                <Card className="border-dashed border-slate-300 bg-slate-50/60">
+                  <CardContent className="p-5 text-center text-xs text-slate-500">
+                    Belum ada nomor antrian aktif hari ini. Lengkapi formulir di samping untuk mengambil nomor.
+                  </CardContent>
+                </Card>
+              )}
+            </div>
+          </div>
         ) : (
           <Card className="max-w-xl">
             <CardContent className="p-6 space-y-4">

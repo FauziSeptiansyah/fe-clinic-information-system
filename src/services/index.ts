@@ -259,6 +259,7 @@ export const queueService = {
       ...queues[index],
       status,
       calledAt: status === "CALLED" ? now : queues[index].calledAt,
+      callCount: status === "CALLED" ? (queues[index].callCount || 0) + 1 : queues[index].callCount,
       serviceStartedAt: status === "IN_SERVICE" ? now : queues[index].serviceStartedAt,
       completedAt: status === "COMPLETED" ? now : queues[index].completedAt,
     };

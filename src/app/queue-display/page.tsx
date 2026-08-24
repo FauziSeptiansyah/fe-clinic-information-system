@@ -8,10 +8,12 @@ import { Badge } from "@/components/ui/badge";
 import { Building2, ArrowLeft, Clock, Activity, BellRing } from "lucide-react";
 import { MOCK_CLINIC_PROFILE } from "@/mocks";
 import { UserAvatar } from "@/components/common/Displays";
+import { useQueueTimeoutWatcher } from "@/hooks/useQueueTimeoutWatcher";
 
 export default function QueueDisplayTVPage() {
   const { queues, setQueues } = useQueueStore();
   const [currentTime, setCurrentTime] = React.useState("");
+  useQueueTimeoutWatcher();
 
   React.useEffect(() => {
     let mounted = true;

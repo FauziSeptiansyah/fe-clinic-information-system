@@ -169,6 +169,8 @@ export interface Queue {
   status: QueueStatus;
   waitingTime: string;
   calledAt?: string;
+  /** How many times this number has been called (incremented on every CALLED transition, including re-calls). */
+  callCount?: number;
   serviceStartedAt?: string;
   completedAt?: string;
   createdAt: string;

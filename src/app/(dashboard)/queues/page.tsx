@@ -25,10 +25,13 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { ROUTES } from "@/config/routes";
+import { useQueueTimeoutWatcher } from "@/hooks/useQueueTimeoutWatcher";
+import { QUEUE_CALL_TIMEOUT_MINUTES, QUEUE_MAX_CALL_ATTEMPTS } from "@/config/queueConfig";
 
 export default function QueuesBoardPage() {
   const { queues, setQueues, updateQueueStatus } = useQueueStore();
   const [selectedDepartment, setSelectedDepartment] = React.useState<string>("ALL");
+  useQueueTimeoutWatcher();
 
   const fetchQueues = React.useCallback(async () => {
     const data = await queueService.getAll();
@@ -122,9 +125,14 @@ export default function QueuesBoardPage() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {/* Column 1: Menunggu & Dipanggil */}
         <div className="space-y-3">
-          <div className="flex items-center justify-between p-3 rounded-lg bg-amber-50 border border-amber-200">
-            <span className="text-xs font-bold text-amber-900 uppercase">Menunggu / Dipanggil</span>
-            <Badge variant="warning" className="text-xs">{waitingList.length}</Badge>
+          <div className="p-3 rounded-lg bg-amber-50 border border-amber-200 space-y-1">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold text-amber-900 uppercase">Menunggu / Dipanggil</span>
+              <Badge variant="warning" className="text-xs">{waitingList.length}</Badge>
+            </div>
+            <p className="text-[10px] text-amber-700">
+              Panggil ulang otomatis tiap {QUEUE_CALL_TIMEOUT_MINUTES} menit, dilewati setelah {QUEUE_MAX_CALL_ATTEMPTS}x tidak direspon.
+            </p>
           </div>
 
           <div className="space-y-3 min-h-[400px]">
@@ -139,7 +147,14 @@ export default function QueuesBoardPage() {
                   <CardContent className="p-4 space-y-3">
                     <div className="flex items-center justify-between">
                       <span className="text-xl font-extrabold text-blue-600 font-mono">{q.queueNumber}</span>
-                      <StatusBadge status={q.status} type="queue" />
+                      <div className="flex items-center gap-1.5">
+                        {q.status === "CALLED" && (q.callCount || 0) > 0 && (
+                          <Badge variant="outline" className="text-[10px] text-amber-700 border-amber-300">
+                            Panggilan ke-{q.callCount}/{QUEUE_MAX_CALL_ATTEMPTS}
+                          </Badge>
+                        )}
+                        <StatusBadge status={q.status} type="queue" />
+                      </div>
                     </div>
 
                     <div className="flex items-center gap-3">
