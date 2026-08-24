@@ -1,0 +1,61 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    --background: 210 40% 98%;
+    --foreground: 222 47% 11%;
+    --primary: 221 83% 53%;
+    --primary-foreground: 210 40% 98%;
+    --card: 0 0% 100%;
+    --card-foreground: 222 47% 11%;
+    --border: 214 32% 91%;
+    --input: 214 32% 91%;
+  }
+
+  body {
+    background-color: #f8fafc;
+    color: #0f172a;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+}
+
+/* Print Specific Styles */
+@media print {
+  body {
+    background: white !important;
+    color: black !important;
+  }
+  
+  header, aside, nav, button, .no-print {
+    display: none !important;
+  }
+
+  .print-only {
+    display: block !important;
+  }
+
+  /* Thermal 80mm Paper Styling */
+  .thermal-receipt {
+    width: 78mm !important;
+    margin: 0 auto !important;
+    padding: 2mm !important;
+    font-family: monospace, sans-serif !important;
+    font-size: 11px !important;
+    line-height: 1.2 !important;
+  }
+
+  /* A4 Document Styling */
+  .a4-document {
+    width: 100% !important;
+    max-width: 210mm !important;
+    margin: 0 auto !important;
+    padding: 10mm !important;
+    background: white !important;
+    box-shadow: none !important;
+    border: none !important;
+  }
+
+  @page {
+    margin: 8mm;
+  }
+}
