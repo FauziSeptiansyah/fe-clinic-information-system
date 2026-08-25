@@ -29,6 +29,7 @@ import {
   Role,
   QueueStatus,
   PrescriptionStatus,
+  PatientChangeRequest,
 } from "@/types";
 import {
   MOCK_CLINIC_PROFILE,
@@ -53,6 +54,8 @@ import {
 } from "@/mocks";
 import { MOCK_USERS } from "@/stores/authStore";
 import { generateId } from "@/lib/utils";
+import { savePendingChangeRequests } from "@/lib/persistedChangeRequests";
+import { saveSelfRegisteredPatient } from "@/lib/selfRegisteredPatients";
 
 // In-memory persistent state during user session
 let clinicProfile: ClinicProfile = { ...MOCK_CLINIC_PROFILE };
@@ -62,6 +65,7 @@ let procedures: Procedure[] = [...MOCK_PROCEDURES];
 let payers: Payer[] = [...MOCK_PAYERS];
 let doctors: Doctor[] = [...MOCK_DOCTORS];
 let patients: Patient[] = [...MOCK_PATIENTS];
+const patientChangeRequests: PatientChangeRequest[] = [];
 let medicines: Medicine[] = [...MOCK_MEDICINES];
 const batches: MedicineBatch[] = [...MOCK_BATCHES];
 const stockMovements: StockMovement[] = [...MOCK_STOCK_MOVEMENTS];
@@ -122,6 +126,9 @@ export const patientService = {
     const index = patients.findIndex((p) => p.id === id);
     if (index === -1) throw new Error("Pasien tidak ditemukan");
     patients[index] = { ...patients[index], ...data };
+    // Keep the localStorage mirror in sync too, so an update (e.g. a CS-approved change
+    // request) survives a reload instead of being overwritten by a stale restored copy.
+    saveSelfRegisteredPatient(patients[index]);
     auditLogService.log("UPDATE_PATIENT", "PATIENT", id, "Mengubah data pasien: " + patients[index].fullName);
     return simulateNetwork(patients[index]);
   },
@@ -132,6 +139,80 @@ export const patientService = {
       auditLogService.log("DELETE_PATIENT", "PATIENT", id, "Menghapus pasien: " + patient.fullName);
     }
     return simulateNetwork(true);
+  },
+};
+
+// 1b. Patient Change Request Service — a patient can only request an edit to their own
+// basic data; it only takes effect once staff (reception) approves it.
+export const patientChangeRequestService = {
+  async getAll(): Promise<PatientChangeRequest[]> {
+    return simulateNetwork(patientChangeRequests);
+  },
+  /** Merges requests restored from localStorage into the in-memory list, skipping ones already present. */
+  restore(list: PatientChangeRequest[]): void {
+    for (const r of list) {
+      if (!patientChangeRequests.some((existing) => existing.id === r.id)) {
+        patientChangeRequests.push(r);
+      }
+    }
+  },
+  async getPendingForPatient(patientId: string): Promise<PatientChangeRequest | null> {
+    const found = patientChangeRequests.find((r) => r.patientId === patientId && r.status === "PENDING") || null;
+    return simulateNetwork(found);
+  },
+  async create(data: {
+    patientId: string;
+    patientName: string;
+    patientMrNumber: string;
+    currentValues: { fullName: string; email: string; phone: string };
+    requestedValues: { fullName: string; email: string; phone: string };
+  }): Promise<PatientChangeRequest> {
+    const alreadyPending = patientChangeRequests.some((r) => r.patientId === data.patientId && r.status === "PENDING");
+    if (alreadyPending) throw new Error("Anda sudah punya permintaan perubahan yang masih menunggu konfirmasi.");
+    const newRequest: PatientChangeRequest = {
+      id: generateId("chg"),
+      ...data,
+      status: "PENDING",
+      requestedAt: new Date().toISOString(),
+    };
+    patientChangeRequests.unshift(newRequest);
+    savePendingChangeRequests(patientChangeRequests);
+    auditLogService.log("REQUEST_PATIENT_CHANGE", "PATIENT", data.patientId, "Pasien " + data.patientName + " mengajukan perubahan data.");
+    return simulateNetwork(newRequest);
+  },
+  async approve(id: string, reviewerName: string): Promise<PatientChangeRequest> {
+    const index = patientChangeRequests.findIndex((r) => r.id === id);
+    if (index === -1) throw new Error("Permintaan tidak ditemukan");
+    const request = patientChangeRequests[index];
+    if (request.status !== "PENDING") throw new Error("Permintaan ini sudah diproses sebelumnya.");
+
+    await patientService.update(request.patientId, request.requestedValues);
+
+    patientChangeRequests[index] = {
+      ...request,
+      status: "APPROVED",
+      reviewedAt: new Date().toISOString(),
+      reviewedBy: reviewerName,
+    };
+    savePendingChangeRequests(patientChangeRequests);
+    auditLogService.log("APPROVE_PATIENT_CHANGE", "PATIENT", request.patientId, reviewerName + " menyetujui perubahan data " + request.patientName + ".");
+    return simulateNetwork(patientChangeRequests[index]);
+  },
+  async reject(id: string, reviewerName: string, note?: string): Promise<PatientChangeRequest> {
+    const index = patientChangeRequests.findIndex((r) => r.id === id);
+    if (index === -1) throw new Error("Permintaan tidak ditemukan");
+    if (patientChangeRequests[index].status !== "PENDING") throw new Error("Permintaan ini sudah diproses sebelumnya.");
+
+    patientChangeRequests[index] = {
+      ...patientChangeRequests[index],
+      status: "REJECTED",
+      reviewedAt: new Date().toISOString(),
+      reviewedBy: reviewerName,
+      reviewNote: note,
+    };
+    savePendingChangeRequests(patientChangeRequests);
+    auditLogService.log("REJECT_PATIENT_CHANGE", "PATIENT", patientChangeRequests[index].patientId, reviewerName + " menolak perubahan data " + patientChangeRequests[index].patientName + ".");
+    return simulateNetwork(patientChangeRequests[index]);
   },
 };
 

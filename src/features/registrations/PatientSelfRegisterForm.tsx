@@ -1,32 +1,26 @@
 "use client";
 
 import * as React from "react";
-import { useRouter, useSearchParams } from "next/navigation";
-import Link from "next/link";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { patientSelfRegisterSchema, PatientSelfRegisterFormValues } from "@/schemas";
+import { Patient } from "@/types";
 import { patientService } from "@/services";
 import { usePatientAuthStore } from "@/stores/patientAuthStore";
 import { saveSelfRegisteredPatient } from "@/lib/selfRegisteredPatients";
 import { Button } from "@/components/ui/button";
 import { FormInput } from "@/components/forms/FormControls";
 import { toast } from "sonner";
-import { ROUTES } from "@/config/routes";
 import { UserPlus } from "lucide-react";
 
-export function PatientSelfRegisterForm() {
-  const router = useRouter();
-  const searchParams = useSearchParams();
-  const redirectTo = searchParams.get("redirect") || ROUTES.PATIENT.DASHBOARD;
-  const loginPatient = usePatientAuthStore((s) => s.loginPatient);
-  const existingPatient = usePatientAuthStore((s) => s.patient);
-  const [isSubmitting, setIsSubmitting] = React.useState(false);
+interface PatientSelfRegisterFormProps {
+  /** Called after the account is created and the patient is auto-logged-in. */
+  onSuccess: (patient: Patient) => void;
+}
 
-  React.useEffect(() => {
-    // Already signed in (e.g. arrived here via browser back) — no reason to see this form again.
-    if (existingPatient) router.replace(redirectTo);
-  }, [existingPatient, redirectTo, router]);
+export function PatientSelfRegisterForm({ onSuccess }: PatientSelfRegisterFormProps) {
+  const loginPatient = usePatientAuthStore((s) => s.loginPatient);
+  const [isSubmitting, setIsSubmitting] = React.useState(false);
 
   const {
     register,
@@ -66,7 +60,7 @@ export function PatientSelfRegisterForm() {
       saveSelfRegisteredPatient(newPatient);
       loginPatient(newPatient);
       toast.success(`Akun berhasil dibuat. Selamat datang, ${newPatient.fullName}!`);
-      router.replace(redirectTo);
+      onSuccess(newPatient);
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : "Gagal membuat akun pasien.");
     } finally {
@@ -82,18 +76,10 @@ export function PatientSelfRegisterForm() {
       <FormInput label="Kata Sandi" type="password" required placeholder="Minimal 6 karakter" error={errors.password?.message} {...register("password")} />
       <FormInput label="Konfirmasi Kata Sandi" type="password" required placeholder="Ulangi kata sandi" error={errors.confirmPassword?.message} {...register("confirmPassword")} />
 
-      <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-2">
-        <p className="text-xs text-slate-500">
-          Sudah punya akun?{" "}
-          <Link href={ROUTES.PUBLIC.LOGIN} className="text-blue-600 font-semibold hover:underline">
-            Login di sini
-          </Link>
-        </p>
-        <Button type="submit" disabled={isSubmitting} className="font-semibold shadow-xs w-full sm:w-auto">
-          <UserPlus className="h-4 w-4 mr-1.5" />
-          {isSubmitting ? "Membuat Akun..." : "Daftar"}
-        </Button>
-      </div>
+      <Button type="submit" disabled={isSubmitting} className="w-full font-semibold shadow-xs">
+        <UserPlus className="h-4 w-4 mr-1.5" />
+        {isSubmitting ? "Membuat Akun..." : "Daftar"}
+      </Button>
     </form>
   );
 }

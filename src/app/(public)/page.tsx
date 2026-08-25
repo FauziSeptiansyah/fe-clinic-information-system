@@ -14,7 +14,6 @@ import {
   HeartPulse,
   Syringe,
   Activity,
-  Ticket,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -23,7 +22,8 @@ import { MOCK_CLINIC_PROFILE, MOCK_DOCTORS, MOCK_SERVICES } from "@/mocks";
 import { ROUTES } from "@/config/routes";
 import { DoctorAvatarArt } from "@/components/illustrations/DoctorAvatarArt";
 import { CalendarCheck, BadgeCheck } from "lucide-react";
-import { PatientNavStatus, PatientLoginHint } from "@/components/navigation/PatientNavStatus";
+import { PatientNavStatus } from "@/components/navigation/PatientNavStatus";
+import { HeroTakeQueueButton } from "@/components/patient/HeroTakeQueueButton";
 
 export default function LandingPage() {
   const todayName = ["MINGGU", "SENIN", "SELASA", "RABU", "KAMIS", "JUMAT", "SABTU"][new Date().getDay()];
@@ -124,19 +124,13 @@ export default function LandingPage() {
               </p>
 
               <div className="flex flex-wrap items-center justify-center sm:justify-start gap-3 pt-2">
-                <Link href={ROUTES.PATIENT.QUEUE}>
-                  <Button size="lg" className="h-12 px-7 shadow-lg shadow-blue-600/20 font-semibold text-sm">
-                    <Ticket className="h-4 w-4 mr-2" />
-                    Ambil Nomor Antrian Online
-                  </Button>
-                </Link>
+                <HeroTakeQueueButton />
                 <a href="#layanan">
                   <Button variant="outline" size="lg" className="h-12 px-7 text-sm font-semibold bg-white">
                     Lihat Layanan Kami
                   </Button>
                 </a>
               </div>
-              <PatientLoginHint />
 
               <div className="grid grid-cols-3 gap-4 pt-6 border-t border-slate-200 text-left max-w-md mx-auto sm:mx-0">
                 <div>

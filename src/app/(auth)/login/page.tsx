@@ -201,16 +201,6 @@ function LoginPageContent() {
               </Button>
             </form>
 
-            <p className="text-xs text-slate-500 text-center">
-              Pasien baru?{" "}
-              <Link
-                href={redirectTo ? `${ROUTES.PUBLIC.REGISTER}?redirect=${encodeURIComponent(redirectTo)}` : ROUTES.PUBLIC.REGISTER}
-                className="text-blue-600 font-semibold hover:underline"
-              >
-                Daftar akun pasien
-              </Link>
-            </p>
-
             {/* Quick Demo Role Switcher */}
             <div className="pt-4 border-t border-slate-200">
               <div className="flex items-center gap-1.5 mb-2 text-[11px] font-bold uppercase tracking-wider text-slate-500">

@@ -2,7 +2,6 @@ export const ROUTES = {
   PUBLIC: {
     HOME: "/",
     LOGIN: "/login",
-    REGISTER: "/register",
   },
   PATIENT: {
     DASHBOARD: "/patient/dashboard",
@@ -16,6 +15,7 @@ export const ROUTES = {
     NEW: "/patients/new",
     DETAIL: (id: string) => `/patients/${id}`,
     EDIT: (id: string) => `/patients/${id}/edit`,
+    CHANGE_REQUESTS: "/patients/change-requests",
   },
   REGISTRATIONS: {
     LIST: "/registrations",

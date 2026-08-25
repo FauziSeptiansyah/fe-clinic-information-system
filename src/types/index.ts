@@ -484,3 +484,18 @@ export interface InventoryReportData {
   totalValuation: number;
   valuationByCategory: { category: string; value: number }[];
 }
+
+/** A patient's self-requested edit to their own basic data — held pending until staff (reception) confirms it. */
+export interface PatientChangeRequest {
+  id: string;
+  patientId: string;
+  patientName: string;
+  patientMrNumber: string;
+  currentValues: { fullName: string; email: string; phone: string };
+  requestedValues: { fullName: string; email: string; phone: string };
+  status: "PENDING" | "APPROVED" | "REJECTED";
+  requestedAt: string;
+  reviewedAt?: string;
+  reviewedBy?: string;
+  reviewNote?: string;
+}

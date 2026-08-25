@@ -25,6 +25,7 @@ import {
   Settings,
   History,
   Building,
+  ClipboardCheck,
   type LucideIcon,
 } from "lucide-react";
 
@@ -66,6 +67,12 @@ export const NAVIGATION_CONFIG: NavGroup[] = [
         href: ROUTES.PATIENTS.LIST,
         icon: Users,
         permissions: ["patients.view"],
+      },
+      {
+        title: "Permintaan Perubahan Data",
+        href: ROUTES.PATIENTS.CHANGE_REQUESTS,
+        icon: ClipboardCheck,
+        permissions: ["patients.update"],
       },
       {
         title: "Antrian Poliklinik",
