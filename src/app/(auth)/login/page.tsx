@@ -25,10 +25,16 @@ export default function LoginPage() {
   const login = useAuthStore((state) => state.login);
   const switchRole = useAuthStore((state) => state.switchRole);
   const loginPatient = usePatientAuthStore((state) => state.loginPatient);
+  const loggedInPatient = usePatientAuthStore((state) => state.patient);
 
   const [email, setEmail] = React.useState("admin@kliniksehat.co.id");
   const [password, setPassword] = React.useState("password123");
   const [isLoading, setIsLoading] = React.useState(false);
+
+  React.useEffect(() => {
+    // Already signed in as a patient (e.g. via browser back) — this form is stale, forward them on.
+    if (loggedInPatient) router.replace(ROUTES.PUBLIC.TAKE_QUEUE);
+  }, [loggedInPatient, router]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -44,7 +50,7 @@ export default function LoginPage() {
       login(email);
       toast.success("Berhasil masuk ke sistem manajemen klinik.");
       setIsLoading(false);
-      router.push(ROUTES.DASHBOARD);
+      router.replace(ROUTES.DASHBOARD);
       return;
     }
 
@@ -55,7 +61,7 @@ export default function LoginPage() {
       loginPatient(patientMatch);
       toast.success(`Selamat datang, ${patientMatch.fullName}!`);
       setIsLoading(false);
-      router.push(ROUTES.PUBLIC.TAKE_QUEUE);
+      router.replace(ROUTES.PUBLIC.TAKE_QUEUE);
       return;
     }
 
@@ -67,14 +73,14 @@ export default function LoginPage() {
     setEmail(selectedUser.email);
     switchRole(selectedUser.role);
     toast.success(`Masuk sebagai: ${selectedUser.name} (${selectedUser.role})`);
-    router.push(ROUTES.DASHBOARD);
+    router.replace(ROUTES.DASHBOARD);
   };
 
   const handleQuickPatientLogin = (selectedPatient: Patient) => {
     setEmail(selectedPatient.email || "");
     loginPatient(selectedPatient);
     toast.success(`Masuk sebagai pasien: ${selectedPatient.fullName}`);
-    router.push(ROUTES.PUBLIC.TAKE_QUEUE);
+    router.replace(ROUTES.PUBLIC.TAKE_QUEUE);
   };
 
   return (

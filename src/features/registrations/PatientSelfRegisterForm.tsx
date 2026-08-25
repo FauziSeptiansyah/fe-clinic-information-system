@@ -65,7 +65,7 @@ export function PatientSelfRegisterForm() {
       saveSelfRegisteredPatient(newPatient);
       loginPatient(newPatient);
       toast.success(`Akun berhasil dibuat. Selamat datang, ${newPatient.fullName}!`);
-      router.push(ROUTES.PUBLIC.TAKE_QUEUE);
+      router.replace(ROUTES.PUBLIC.TAKE_QUEUE);
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : "Gagal membuat akun pasien.");
     } finally {

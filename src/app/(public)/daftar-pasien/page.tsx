@@ -1,10 +1,23 @@
+"use client";
+
+import * as React from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Building2, ArrowLeft, UserPlus } from "lucide-react";
 import { PatientSelfRegisterForm } from "@/features/registrations/PatientSelfRegisterForm";
 import { ROUTES } from "@/config/routes";
 import { MOCK_CLINIC_PROFILE } from "@/mocks";
+import { usePatientAuthStore } from "@/stores/patientAuthStore";
 
 export default function PatientRegisterPage() {
+  const router = useRouter();
+  const patient = usePatientAuthStore((s) => s.patient);
+
+  React.useEffect(() => {
+    // Already signed in — no reason to see the registration form again.
+    if (patient) router.replace(ROUTES.PUBLIC.TAKE_QUEUE);
+  }, [patient, router]);
+
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 selection:bg-blue-600 selection:text-white">
       <header className="sticky top-0 z-50 bg-white/95 backdrop-blur-md border-b border-slate-200">

@@ -14,7 +14,6 @@ import {
   HeartPulse,
   Syringe,
   Activity,
-  LogIn,
   Ticket,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -24,7 +23,7 @@ import { MOCK_CLINIC_PROFILE, MOCK_DOCTORS, MOCK_SERVICES } from "@/mocks";
 import { ROUTES } from "@/config/routes";
 import { DoctorAvatarArt } from "@/components/illustrations/DoctorAvatarArt";
 import { CalendarCheck, BadgeCheck } from "lucide-react";
-import { PatientNavStatus } from "@/components/navigation/PatientNavStatus";
+import { PatientNavStatus, PatientLoginHint } from "@/components/navigation/PatientNavStatus";
 
 export default function LandingPage() {
   const todayName = ["MINGGU", "SENIN", "SELASA", "RABU", "KAMIS", "JUMAT", "SABTU"][new Date().getDay()];
@@ -98,15 +97,7 @@ export default function LandingPage() {
             <a href="#kontak" className="hover:text-blue-600 transition-colors">Kontak</a>
           </nav>
 
-          <div className="flex items-center gap-2">
-            <PatientNavStatus />
-            <Link href={ROUTES.PUBLIC.LOGIN}>
-              <Button size="sm" variant="outline" className="font-semibold">
-                <LogIn className="h-4 w-4 mr-1.5" />
-                Login
-              </Button>
-            </Link>
-          </div>
+          <PatientNavStatus />
         </div>
       </header>
 
@@ -145,11 +136,7 @@ export default function LandingPage() {
                   </Button>
                 </a>
               </div>
-              <Link href={ROUTES.PUBLIC.LOGIN} className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500 hover:text-blue-600">
-                <LogIn className="h-3.5 w-3.5" />
-                Sudah punya akun? Login di sini
-                <ArrowRight className="h-3.5 w-3.5" />
-              </Link>
+              <PatientLoginHint />
 
               <div className="grid grid-cols-3 gap-4 pt-6 border-t border-slate-200 text-left max-w-md mx-auto sm:mx-0">
                 <div>
@@ -428,14 +415,6 @@ export default function LandingPage() {
               <div className="pt-2">
                 <p className="text-xs font-semibold text-slate-500 uppercase">Email</p>
                 <p className="text-sm font-medium text-slate-900">{MOCK_CLINIC_PROFILE.email}</p>
-              </div>
-
-              <div className="pt-4 border-t border-slate-100 flex gap-2">
-                <Link href={ROUTES.PUBLIC.LOGIN} className="w-full">
-                  <Button className="w-full font-semibold text-xs">
-                    Masuk ke Sistem Manajemen
-                  </Button>
-                </Link>
               </div>
             </CardContent>
           </Card>
