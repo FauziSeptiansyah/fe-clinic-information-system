@@ -1,8 +1,9 @@
 "use client";
 
 import * as React from "react";
-import { billingService, paymentService } from "@/services";
-import { Invoice, Payment, PaymentMethod } from "@/types";
+import { billingService, paymentService, visitService } from "@/services";
+import { Invoice, Payment, PaymentMethod, Visit } from "@/types";
+import { useAuthStore } from "@/stores/authStore";
 import { PageContainer } from "@/components/common/PageContainer";
 import { PageHeader } from "@/components/common/PageHeader";
 import { DataTable } from "@/components/data-table/DataTable";
@@ -19,8 +20,10 @@ import { formatCurrency, formatDateTime } from "@/lib/utils";
 import { toast } from "sonner";
 
 export default function PaymentsPage() {
+  const user = useAuthStore((s) => s.user);
   const [payments, setPayments] = React.useState<Payment[]>([]);
   const [invoices, setInvoices] = React.useState<Invoice[]>([]);
+  const [visits, setVisits] = React.useState<Visit[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
 
   const [selectedInvoice, setSelectedInvoice] = React.useState<Invoice | null>(null);
@@ -34,12 +37,14 @@ export default function PaymentsPage() {
   const loadData = React.useCallback(async () => {
     try {
       setIsLoading(true);
-      const [pays, invs] = await Promise.all([
+      const [pays, invs, vs] = await Promise.all([
         paymentService.getAll(),
         billingService.getAll(),
+        visitService.getAll(),
       ]);
       setPayments(pays);
       setInvoices(invs);
+      setVisits(vs);
     } finally {
       setIsLoading(false);
     }
@@ -70,7 +75,7 @@ export default function PaymentsPage() {
         amount: Number(payAmount),
         paymentMethod: payMethod,
         referenceNumber: refNumber || (payMethod === "QRIS" ? "QRIS-" + Date.now().toString().slice(-6) : undefined),
-        cashierName: "Rina Kusuma (Kasir)",
+        cashierName: user?.name || "Kasir",
       });
 
       toast.success(`Pembayaran sebesar ${formatCurrency(payAmount)} berhasil diproses!`);
@@ -88,7 +93,12 @@ export default function PaymentsPage() {
     }
   };
 
-  const unpaidInvoices = invoices.filter((i) => i.status === "UNPAID" || i.status === "PARTIAL");
+  // Only invoices whose visit has actually reached the cashier stage — a visit still
+  // mid-pipeline (with nurse follow-up, or waiting for the pharmacy) isn't payable yet.
+  const visitsWaitingCashier = new Set(visits.filter((v) => v.status === "WAITING_CASHIER").map((v) => v.id));
+  const unpaidInvoices = invoices.filter(
+    (i) => (i.status === "UNPAID" || i.status === "PARTIAL") && i.visitId && visitsWaitingCashier.has(i.visitId)
+  );
 
   const columns: ColumnDef<Payment>[] = [
     {

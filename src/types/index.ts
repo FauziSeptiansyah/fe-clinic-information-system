@@ -10,8 +10,8 @@ export type Permission =
   | "queues.view"
   | "queues.manage"
   | "visits.view"
-  | "visits.create"
-  | "visits.update"
+  | "visits.triage"
+  | "visits.examine"
   | "medical_records.view"
   | "medical_records.create"
   | "prescriptions.view"
@@ -39,8 +39,22 @@ export type Permission =
 export type Gender = "MALE" | "FEMALE";
 export type BloodType = "A" | "B" | "AB" | "O" | "-";
 export type PayerType = "GENERAL" | "BPJS" | "INSURANCE" | "CORPORATE";
-export type QueueStatus = "WAITING" | "CALLED" | "IN_SERVICE" | "COMPLETED" | "SKIPPED" | "CANCELLED";
-export type VisitStatus = "REGISTERED" | "IN_EXAMINATION" | "EXAMINED" | "PHARMACY_WAITING" | "COMPLETED" | "CANCELLED";
+/** Where a queue number was taken from — the online patient portal, an in-clinic kiosk, or typed in by staff at the front desk. */
+export type QueueSource = "ONLINE" | "KIOSK" | "STAFF";
+export type QueueStatus = "WAITING" | "CALLED" | "IN_SERVICE" | "COMPLETED" | "NO_SHOW" | "CANCELLED";
+/**
+ * One Visit moves through every service stage in order — each role only ever writes the
+ * sub-record for its own stage (see nurseAssessment/doctorExamination/followUp on Visit).
+ */
+export type VisitStatus =
+  | "WAITING_RECEPTION"
+  | "WAITING_NURSE"
+  | "WAITING_DOCTOR"
+  | "WAITING_FOLLOW_UP"
+  | "WAITING_PHARMACY"
+  | "WAITING_CASHIER"
+  | "COMPLETED"
+  | "CANCELLED";
 export type PrescriptionStatus = "PENDING" | "PROCESSING" | "READY" | "COMPLETED" | "CANCELLED";
 export type InvoiceStatus = "UNPAID" | "PARTIAL" | "PAID" | "VOID";
 export type PaymentMethod = "CASH" | "DEBIT" | "QRIS" | "TRANSFER" | "INSURANCE" | "BPJS";
@@ -156,7 +170,9 @@ export interface Payer {
 export interface Queue {
   id: string;
   queueNumber: string;
-  patientId: string;
+  source: QueueSource;
+  /** Null for a kiosk queue taken before the patient has been identified by reception. */
+  patientId: string | null;
   patientName: string;
   patientMrNumber: string;
   departmentId: string;
@@ -173,6 +189,8 @@ export interface Queue {
   callCount?: number;
   serviceStartedAt?: string;
   completedAt?: string;
+  /** Set once reception identifies the patient and creates the Visit for this queue entry. */
+  visitId?: string;
   createdAt: string;
 }
 
@@ -180,16 +198,58 @@ export interface VitalSigns {
   bloodPressure: string;
   temperature: number;
   pulse: number;
-  respiration: number;
-  spo2: number;
+  respiration?: number;
   weight: number;
   height: number;
+}
+
+/** Recorded by the Nurse at triage — the first clinical data collected for a visit. */
+export interface NurseAssessment {
+  complaint: string;
+  weight: number;
+  height: number;
+  bloodPressure: string;
+  temperature: number;
+  pulse: number;
+  respiration?: number;
+  medicalHistory?: string;
+  allergyHistory?: string;
+  currentMedications?: string;
+  nurseNotes?: string;
+  recordedBy: string;
+  recordedAt: string;
+}
+
+/** Recorded by the Doctor — diagnosis, treatment and whether a prescription/follow-up is needed. */
+export interface DoctorExamination {
+  anamnesis?: string;
+  examination?: string;
+  primaryDiagnosis: string;
+  secondaryDiagnosis?: string;
+  treatment: string;
+  doctorNotes?: string;
+  hasPrescription: boolean;
+  needsFollowUp: boolean;
+  followUpInstruction?: string;
+  examinedBy: string;
+  examinedAt: string;
+}
+
+/** Recorded by the Nurse after the Doctor — confirms whether the patient needs pharmacy/a return visit. */
+export interface VisitFollowUp {
+  hasFollowUp: boolean;
+  followUpDate?: string;
+  instruction?: string;
+  hasPrescription: boolean;
+  followedUpBy: string;
+  followedUpAt: string;
 }
 
 export interface Visit {
   id: string;
   queueId: string;
   queueNumber: string;
+  source: QueueSource;
   patientId: string;
   patientName: string;
   patientMrNumber: string;
@@ -204,15 +264,9 @@ export interface Visit {
   payerType: PayerType;
   registrationDate: string;
   status: VisitStatus;
-  complaint: string;
-  historyOfPresentIllness?: string;
-  pastMedicalHistory?: string;
-  allergy?: string;
-  vitalSigns?: VitalSigns;
-  primaryDiagnosis?: string;
-  secondaryDiagnosis?: string;
-  treatment?: string;
-  notes?: string;
+  nurseAssessment?: NurseAssessment;
+  doctorExamination?: DoctorExamination;
+  followUp?: VisitFollowUp;
   prescriptionId?: string;
   invoiceId?: string;
   createdAt: string;

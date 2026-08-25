@@ -46,19 +46,6 @@ export const patientSelfRegisterSchema = z
 
 export type PatientSelfRegisterFormValues = z.infer<typeof patientSelfRegisterSchema>;
 
-export const registrationSchema = z.object({
-  patientId: z.string().min(1, "Pilih pasien terlebih dahulu"),
-  departmentId: z.string().min(1, "Pilih poliklinik tujuan"),
-  doctorId: z.string().min(1, "Pilih dokter pemeriksa"),
-  serviceId: z.string().min(1, "Pilih layanan medis"),
-  payerType: z.enum(["GENERAL", "BPJS", "INSURANCE", "CORPORATE"]),
-  registrationDate: z.string().min(1, "Tanggal registrasi wajib diisi"),
-  complaint: z.string().min(3, "Keluhan utama minimal 3 karakter"),
-  notes: z.string().optional(),
-});
-
-export type RegistrationFormValues = z.infer<typeof registrationSchema>;
-
 export const doctorSchema = z.object({
   name: z.string().min(3, "Nama dokter wajib diisi"),
   licenseNumber: z.string().min(3, "Nomor SIP wajib diisi"),
@@ -71,25 +58,45 @@ export const doctorSchema = z.object({
 
 export type DoctorFormValues = z.infer<typeof doctorSchema>;
 
-export const visitExaminationSchema = z.object({
-  complaint: z.string().min(2, "Keluhan utama wajib diisi"),
-  historyOfPresentIllness: z.string().optional(),
-  pastMedicalHistory: z.string().optional(),
-  allergy: z.string().optional(),
+// Nurse triage — first clinical data collected for a visit.
+export const nurseAssessmentSchema = z.object({
+  complaint: z.string().min(3, "Keluhan utama wajib diisi"),
+  weight: z.number().min(1, "Berat badan tidak valid").max(300, "Berat badan tidak valid"),
+  height: z.number().min(20, "Tinggi badan tidak valid").max(250, "Tinggi badan tidak valid"),
   bloodPressure: z.string().min(3, "Tekanan darah wajib diisi (cth: 120/80)"),
   temperature: z.number().min(30, "Suhu tubuh tidak valid").max(45, "Suhu tubuh tidak valid"),
-  pulse: z.number().min(30, "Denyut nadi tidak valid").max(200, "Denyut nadi tidak valid"),
-  respiration: z.number().min(8, "Laju pernapasan tidak valid").max(60, "Laju pernapasan tidak valid"),
-  spo2: z.number().min(50, "SpO2 tidak valid").max(100, "SpO2 tidak valid"),
-  weight: z.number().min(1, "Berat badan tidak valid").max(300, "Berat badan tidak valid"),
-  height: z.number().min(30, "Tinggi badan tidak valid").max(250, "Tinggi badan tidak valid"),
+  pulse: z.number().min(30, "Denyut nadi tidak valid").max(220, "Denyut nadi tidak valid"),
+  respiration: z.number().min(8, "Laju pernapasan tidak valid").max(80, "Laju pernapasan tidak valid").optional(),
+  medicalHistory: z.string().optional(),
+  allergyHistory: z.string().optional(),
+  currentMedications: z.string().optional(),
+  nurseNotes: z.string().optional(),
+});
+
+export type NurseAssessmentFormValues = z.infer<typeof nurseAssessmentSchema>;
+
+// Doctor examination — diagnosis, treatment, and whether the patient needs a follow-up.
+export const doctorExaminationSchema = z.object({
+  anamnesis: z.string().optional(),
+  examination: z.string().optional(),
   primaryDiagnosis: z.string().min(3, "Diagnosa utama wajib diisi"),
   secondaryDiagnosis: z.string().optional(),
   treatment: z.string().min(2, "Tindakan / terapi wajib diisi"),
-  notes: z.string().optional(),
+  doctorNotes: z.string().optional(),
+  needsFollowUp: z.boolean(),
+  followUpInstruction: z.string().optional(),
 });
 
-export type VisitExaminationFormValues = z.infer<typeof visitExaminationSchema>;
+export type DoctorExaminationFormValues = z.infer<typeof doctorExaminationSchema>;
+
+// Nurse follow-up after the doctor — confirms whether the patient needs pharmacy/a return visit.
+export const followUpSchema = z.object({
+  hasFollowUp: z.boolean(),
+  followUpDate: z.string().optional(),
+  instruction: z.string().optional(),
+});
+
+export type FollowUpFormValues = z.infer<typeof followUpSchema>;
 
 export const medicineSchema = z.object({
   code: z.string().min(2, "Kode obat wajib diisi"),

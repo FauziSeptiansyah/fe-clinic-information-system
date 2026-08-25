@@ -9,23 +9,25 @@ import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/common/StatusBadge";
 import { WelcomeBanner } from "./WelcomeBanner";
 import { QuickActionsCard } from "./QuickActions";
-import { prescriptionService, inventoryService, medicineService } from "@/services";
+import { prescriptionService, inventoryService, medicineService, visitService } from "@/services";
 import { ROUTES } from "@/config/routes";
-import { Prescription, Medicine, InventorySummary, User } from "@/types";
+import { Prescription, Medicine, InventorySummary, User, Visit } from "@/types";
 
 export function PharmacistDashboard({ user }: { user: User | null }) {
   const [prescriptions, setPrescriptions] = React.useState<Prescription[]>([]);
+  const [visits, setVisits] = React.useState<Visit[]>([]);
   const [summary, setSummary] = React.useState<InventorySummary | null>(null);
   const [medicines, setMedicines] = React.useState<Medicine[]>([]);
 
   React.useEffect(() => {
     let cancelled = false;
-    Promise.all([prescriptionService.getAll(), inventoryService.getSummary(), medicineService.getAll()]).then(
-      ([rx, sum, meds]) => {
+    Promise.all([prescriptionService.getAll(), inventoryService.getSummary(), medicineService.getAll(), visitService.getAll()]).then(
+      ([rx, sum, meds, vs]) => {
         if (cancelled) return;
         setPrescriptions(rx);
         setSummary(sum);
         setMedicines(meds);
+        setVisits(vs);
       }
     );
     return () => {
@@ -33,7 +35,10 @@ export function PharmacistDashboard({ user }: { user: User | null }) {
     };
   }, []);
 
-  const pending = prescriptions.filter((p) => p.status === "PENDING" || p.status === "PROCESSING");
+  // A prescription only becomes pharmacy's job once nurse follow-up has routed the visit
+  // to WAITING_PHARMACY — not merely because the doctor attached items to it.
+  const visitsWaitingPharmacy = new Set(visits.filter((v) => v.status === "WAITING_PHARMACY").map((v) => v.id));
+  const pending = prescriptions.filter((p) => (p.status === "PENDING" && visitsWaitingPharmacy.has(p.visitId)) || p.status === "PROCESSING");
   const lowStockMeds = medicines.filter((m) => m.currentStock <= m.minimumStock);
 
   return (

@@ -182,7 +182,7 @@ export default function PatientDetailPage() {
                   <div key={v.id} className="p-4 flex items-center justify-between hover:bg-slate-50">
                     <div>
                       <p className="text-sm font-semibold text-slate-900">{formatDate(v.registrationDate, "dd MMMM yyyy")} • {v.departmentName}</p>
-                      <p className="text-xs text-slate-500">Dokter: {v.doctorName} • Keluhan: {v.complaint}</p>
+                      <p className="text-xs text-slate-500">Dokter: {v.doctorName} • Keluhan: {v.nurseAssessment?.complaint || "-"}</p>
                     </div>
                     <div className="flex items-center gap-3">
                       <StatusBadge status={v.status} type="visit" />
@@ -219,7 +219,7 @@ export default function PatientDetailPage() {
                       <div>
                         <p className="font-semibold text-slate-700 uppercase tracking-wide">Tanda Vital (Objective):</p>
                         <p className="text-slate-600 mt-0.5">
-                          TD: {mr.vitalSigns.bloodPressure} mmHg | Suhu: {mr.vitalSigns.temperature}°C | Nadi: {mr.vitalSigns.pulse}x/m | SpO2: {mr.vitalSigns.spo2}%
+                          TD: {mr.vitalSigns.bloodPressure} mmHg | Suhu: {mr.vitalSigns.temperature}°C | Nadi: {mr.vitalSigns.pulse}x/m
                         </p>
                       </div>
                       <div>

@@ -11,8 +11,10 @@ import { Permission } from "@/types";
 export const ROUTE_ACCESS: { prefix: string; permission: Permission }[] = [
   { prefix: "/registrations", permission: "registrations.create" },
   { prefix: "/patients/change-requests", permission: "patients.update" },
+  { prefix: "/patients/new", permission: "patients.create" },
   { prefix: "/patients", permission: "patients.view" },
   { prefix: "/queues", permission: "queues.view" },
+  { prefix: "/nurse", permission: "visits.triage" },
   { prefix: "/visits", permission: "visits.view" },
   { prefix: "/medical-records", permission: "medical_records.view" },
   { prefix: "/pharmacy", permission: "pharmacy.view" },

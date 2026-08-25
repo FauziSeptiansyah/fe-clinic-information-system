@@ -8,20 +8,20 @@ import {
   doctorService,
   masterService,
   queueService,
+  visitService,
 } from "@/services";
-import { Patient, Doctor, Department, Service, Queue, PayerType } from "@/types";
+import { Patient, Doctor, Department, Service, Queue, PayerType, QueueSource } from "@/types";
 import { useQueueStore } from "@/stores/queueStore";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogFooter } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { ROUTES } from "@/config/routes";
-import { Search, UserCheck, Ticket, Printer, Building2, Stethoscope, ClipboardList, Check } from "lucide-react";
+import { Search, UserCheck, Ticket, Printer, Building2, Stethoscope, Check } from "lucide-react";
 import { formatCurrency, cn } from "@/lib/utils";
 import { UserAvatar } from "@/components/common/Displays";
 
@@ -36,9 +36,26 @@ interface RegistrationFormProps {
   allowNewPatient?: boolean;
   /** When set, Step 1 is locked to this patient (no search, no switching identity) — used for a logged-in patient's own self-service flow. */
   fixedPatient?: Patient;
+  /** Where this queue number is being taken from. */
+  source: QueueSource;
+  /**
+   * Staff at the front desk identify the patient at the same moment they take the number, so
+   * a Visit is created immediately (skipping the separate reception "receive" step). A patient
+   * taking a number online is NOT at the front desk, so this stays false — only a bare Queue
+   * entry is created, and reception creates the Visit later once they receive it.
+   */
+  createVisitImmediately?: boolean;
 }
 
-export function RegistrationForm({ cancelHref, continueHref, continueLabel, allowNewPatient = true, fixedPatient }: RegistrationFormProps) {
+export function RegistrationForm({
+  cancelHref,
+  continueHref,
+  continueLabel,
+  allowNewPatient = true,
+  fixedPatient,
+  source,
+  createVisitImmediately = false,
+}: RegistrationFormProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const preselectedPatientId = searchParams.get("patientId");
@@ -55,8 +72,6 @@ export function RegistrationForm({ cancelHref, continueHref, continueLabel, allo
   const [selectedDoctorId, setSelectedDoctorId] = React.useState("");
   const [selectedServiceId, setSelectedServiceId] = React.useState("");
   const [payerType, setPayerType] = React.useState<"GENERAL" | "BPJS" | "INSURANCE" | "CORPORATE">(fixedPatient?.payer ?? "GENERAL");
-  const [complaint, setComplaint] = React.useState("");
-  const [notes, setNotes] = React.useState("");
   const [isSubmitting, setIsSubmitting] = React.useState(false);
 
   // Success Ticket Modal State
@@ -133,26 +148,24 @@ export function RegistrationForm({ cancelHref, continueHref, continueLabel, allo
       toast.error("Silakan pilih layanan.");
       return;
     }
-    if (!complaint.trim()) {
-      toast.error("Keluhan pasien wajib diisi.");
-      return;
-    }
 
     try {
       setIsSubmitting(true);
-      const result = await queueService.createRegistration({
+      const queue = await queueService.createQueue({
+        source,
         patientId: selectedPatient.id,
         departmentId: selectedDepartmentId,
         doctorId: selectedDoctorId,
         serviceId: selectedServiceId,
-        payerType: payerType,
-        registrationDate: new Date().toISOString().split("T")[0],
-        complaint: complaint,
-        notes: notes,
+        payerType,
       });
 
-      setRegisteredQueue(result.queue);
-      toast.success(`Pendaftaran berhasil! Nomor Antrian: ${result.queue.queueNumber}`);
+      if (createVisitImmediately) {
+        await visitService.createFromQueue(queue.id, selectedPatient.id);
+      }
+
+      setRegisteredQueue(queue);
+      toast.success(`Nomor antrian dibuat: ${queue.queueNumber}`);
     } catch (err: unknown) {
       if (err instanceof Error) {
         toast.error(err.message);
@@ -181,7 +194,6 @@ export function RegistrationForm({ cancelHref, continueHref, continueLabel, allo
         {[
           { label: "Pilih Pasien", icon: UserCheck, done: !!selectedPatient },
           { label: "Poliklinik & Layanan", icon: Stethoscope, done: !!selectedDoctorId && !!selectedServiceId },
-          { label: "Keluhan & Penjamin", icon: ClipboardList, done: !!complaint.trim() },
         ].map((step, i, arr) => (
           <React.Fragment key={step.label}>
             <div className="flex items-center gap-2">
@@ -293,7 +305,7 @@ export function RegistrationForm({ cancelHref, continueHref, continueLabel, allo
             <CardTitle className="text-base font-bold text-slate-900">Langkah 2: Tujuan Poliklinik & Layanan</CardTitle>
             <CardDescription className="text-xs text-slate-500">Pilih poliklinik, dokter yang bertugas, dan jenis layanan.</CardDescription>
           </CardHeader>
-          <CardContent className="p-5 grid grid-cols-1 md:grid-cols-3 gap-4">
+          <CardContent className="p-5 grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-1.5">
               <Label className="text-xs font-semibold text-slate-700">Poliklinik Tujuan *</Label>
               <Select value={selectedDepartmentId} onValueChange={handleDepartmentChange}>
@@ -341,51 +353,20 @@ export function RegistrationForm({ cancelHref, continueHref, continueLabel, allo
                 </SelectContent>
               </Select>
             </div>
-          </CardContent>
-        </Card>
-
-        {/* Step 3: Payer & Complaint */}
-        <Card className="shadow-xs">
-          <CardHeader className="p-5 pb-3 border-b border-slate-100">
-            <CardTitle className="text-base font-bold text-slate-900">Langkah 3: Keluhan Utama Pasien & Penjamin</CardTitle>
-          </CardHeader>
-          <CardContent className="p-5 space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <Label className="text-xs font-semibold text-slate-700">Penjamin Biaya Kunjungan</Label>
-                <Select value={payerType} onValueChange={(val) => setPayerType(val as PayerType)}>
-                  <SelectTrigger className="text-xs">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="GENERAL">Umum / Pembayaran Mandiri</SelectItem>
-                    <SelectItem value="BPJS">BPJS Kesehatan (JKN/KIS)</SelectItem>
-                    <SelectItem value="INSURANCE">Asuransi Swasta</SelectItem>
-                    <SelectItem value="CORPORATE">Perusahaan / Corporate</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
 
             <div className="space-y-1.5">
-              <Label className="text-xs font-semibold text-slate-700">Keluhan Utama Pasien *</Label>
-              <Textarea
-                value={complaint}
-                onChange={(e) => setComplaint(e.target.value)}
-                placeholder="Cth: Demam tinggi 3 hari disertai batuk pilek dan sakit kepala..."
-                className="text-xs min-h-[70px]"
-                required
-              />
-            </div>
-
-            <div className="space-y-1.5">
-              <Label className="text-xs font-semibold text-slate-700">Catatan Tambahan (Opsional)</Label>
-              <Input
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-                placeholder="Cth: Pasien membawa hasil lab luar, menggunakan kursi roda..."
-                className="text-xs"
-              />
+              <Label className="text-xs font-semibold text-slate-700">Penjamin Biaya Kunjungan</Label>
+              <Select value={payerType} onValueChange={(val) => setPayerType(val as PayerType)}>
+                <SelectTrigger className="text-xs">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="GENERAL">Umum / Pembayaran Mandiri</SelectItem>
+                  <SelectItem value="BPJS">BPJS Kesehatan (JKN/KIS)</SelectItem>
+                  <SelectItem value="INSURANCE">Asuransi Swasta</SelectItem>
+                  <SelectItem value="CORPORATE">Perusahaan / Corporate</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </CardContent>
           <CardFooter className="p-5 bg-slate-50 border-t border-slate-100 flex items-center justify-between">
@@ -394,7 +375,7 @@ export function RegistrationForm({ cancelHref, continueHref, continueLabel, allo
             </Link>
             <Button type="submit" disabled={isSubmitting} className="font-semibold shadow-xs">
               <Ticket className="h-4 w-4 mr-1.5" />
-              {isSubmitting ? "Mendaftarkan..." : "Daftarkan & Buat Nomor Antrian"}
+              {isSubmitting ? "Memproses..." : "Ambil Nomor Antrian"}
             </Button>
           </CardFooter>
         </Card>

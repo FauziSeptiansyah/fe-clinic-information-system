@@ -1,23 +1,31 @@
 import { Permission, Role } from "@/types";
 
+/**
+ * One patient journey, handed off stage by stage — each role only gets the permissions its
+ * own stage needs (Reception -> Nurse -> Doctor -> Nurse follow-up -> Pharmacy -> Cashier).
+ * ADMIN and OWNER are deliberately NOT part of that journey: ADMIN manages staff accounts +
+ * master data, OWNER is read-only oversight/reporting.
+ */
 export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
   ADMIN: [
-    "patients.view", "patients.create", "patients.update", "patients.delete",
-    "registrations.view", "registrations.create",
-    "queues.view", "queues.manage",
-    "visits.view", "visits.create", "visits.update",
-    "medical_records.view", "medical_records.create",
-    "prescriptions.view", "prescriptions.process",
-    "pharmacy.view", "pharmacy.dispense",
-    "medicines.view", "medicines.manage",
-    "inventory.view", "inventory.manage",
-    "suppliers.view", "suppliers.manage",
-    "purchases.view", "purchases.manage",
-    "billing.view", "billing.create",
-    "payments.view", "payments.create",
+    "patients.view",
+    "registrations.view",
+    "queues.view",
+    "visits.view",
+    "medical_records.view",
+    "prescriptions.view",
+    "pharmacy.view",
+    "medicines.view",
+    "inventory.view",
+    "suppliers.view",
+    "purchases.view",
+    "billing.view",
+    "payments.view",
     "reports.view",
-    "master.view", "master.manage",
-    "settings.view", "settings.manage",
+    "master.view",
+    "master.manage",
+    "settings.view",
+    "settings.manage",
   ],
   OWNER: [
     "patients.view", "registrations.view", "queues.view", "visits.view",
@@ -30,18 +38,17 @@ export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
     "patients.view", "patients.create", "patients.update",
     "registrations.view", "registrations.create",
     "queues.view", "queues.manage",
-    "billing.view", "payments.view", "payments.create",
   ],
   DOCTOR: [
-    "patients.view", "queues.view",
-    "visits.view", "visits.update",
+    "patients.view",
+    "visits.view", "visits.examine",
     "medical_records.view", "medical_records.create",
-    "prescriptions.view", "prescriptions.process",
+    "prescriptions.view",
     "medicines.view",
   ],
   NURSE: [
-    "patients.view", "queues.view", "queues.manage",
-    "visits.view", "visits.update",
+    "patients.view",
+    "visits.view", "visits.triage",
     "medical_records.view",
   ],
   PHARMACIST: [
@@ -52,9 +59,10 @@ export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
     "purchases.view",
   ],
   CASHIER: [
-    "billing.view", "billing.create",
+    "billing.view",
     "payments.view", "payments.create",
     "patients.view",
+    "visits.view",
   ],
   WAREHOUSE: [
     "medicines.view", "medicines.manage",

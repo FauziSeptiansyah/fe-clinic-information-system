@@ -46,6 +46,8 @@ export default function PatientQueuePage() {
             continueLabel="Lihat Status Antrean Saya"
             allowNewPatient={false}
             fixedPatient={patient}
+            source="ONLINE"
+            createVisitImmediately={false}
           />
         </React.Suspense>
       )}

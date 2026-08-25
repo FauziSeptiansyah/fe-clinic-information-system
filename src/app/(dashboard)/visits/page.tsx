@@ -5,17 +5,21 @@ import Link from "next/link";
 import { ColumnDef } from "@tanstack/react-table";
 import { Visit } from "@/types";
 import { visitService } from "@/services";
+import { useAuthStore } from "@/stores/authStore";
+import { hasPermission } from "@/config/permissionConfig";
 import { PageContainer } from "@/components/common/PageContainer";
 import { PageHeader } from "@/components/common/PageHeader";
 import { DataTable } from "@/components/data-table/DataTable";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { StatusBadge } from "@/components/common/StatusBadge";
-import { Stethoscope, UserPlus } from "lucide-react";
+import { Stethoscope, Eye } from "lucide-react";
 import { ROUTES } from "@/config/routes";
 import { PAYER_CONFIG } from "@/config/statusConfig";
 
 export default function VisitsPage() {
+  const role = useAuthStore((s) => s.role);
+  const canExamine = hasPermission(role || undefined, "visits.examine");
   const [visits, setVisits] = React.useState<Visit[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
 
@@ -67,9 +71,9 @@ export default function VisitsPage() {
       cell: ({ row }) => <span className="text-xs text-slate-700">{row.getValue("doctorName")}</span>,
     },
     {
-      accessorKey: "primaryDiagnosis",
+      id: "primaryDiagnosis",
       header: "Diagnosa Utama",
-      cell: ({ row }) => <span className="text-xs font-medium text-slate-900">{row.getValue("primaryDiagnosis") || "-"}</span>,
+      cell: ({ row }) => <span className="text-xs font-medium text-slate-900">{row.original.doctorExamination?.primaryDiagnosis || "-"}</span>,
     },
     {
       accessorKey: "payerType",
@@ -91,11 +95,12 @@ export default function VisitsPage() {
       header: "Aksi",
       cell: ({ row }) => {
         const v = row.original;
+        const actionable = v.status === "WAITING_DOCTOR" && canExamine;
         return (
           <Link href={ROUTES.VISITS.DETAIL(v.id)}>
-            <Button size="sm" variant="default" className="text-xs h-8 font-semibold shadow-xs">
-              <Stethoscope className="h-3.5 w-3.5 mr-1" />
-              Periksa (SOAP)
+            <Button size="sm" variant={actionable ? "default" : "outline"} className="text-xs h-8 font-semibold shadow-xs">
+              {actionable ? <Stethoscope className="h-3.5 w-3.5 mr-1" /> : <Eye className="h-3.5 w-3.5 mr-1" />}
+              {actionable ? "Periksa" : "Lihat"}
             </Button>
           </Link>
         );
@@ -103,28 +108,37 @@ export default function VisitsPage() {
     },
   ];
 
+  const waitingDoctor = visits.filter((v) => v.status === "WAITING_DOCTOR");
+  const history = visits.filter((v) => v.status !== "WAITING_DOCTOR");
+
   return (
     <PageContainer>
       <PageHeader
         title="Kunjungan & Pemeriksaan Medis"
-        description="Pencatatan pemeriksaan fisik (SOAP), vital signs, diagnosis ICD, tindakan, dan resep obat."
-        actions={
-          <Link href={ROUTES.REGISTRATIONS.NEW}>
-            <Button size="sm" className="font-semibold shadow-xs">
-              <UserPlus className="h-4 w-4 mr-1.5" />
-              Pendaftaran Baru
-            </Button>
-          </Link>
-        }
+        description="Pasien yang menunggu diperiksa, dan riwayat kunjungan yang sudah berjalan."
       />
 
-      <DataTable
-        columns={columns}
-        data={visits}
-        searchKey="patientName"
-        searchPlaceholder="Cari nama pasien atau diagnosa..."
-        isLoading={isLoading}
-      />
+      <div className="space-y-2">
+        <h2 className="text-sm font-bold text-slate-900">Menunggu Diperiksa ({waitingDoctor.length})</h2>
+        <DataTable
+          columns={columns}
+          data={waitingDoctor}
+          searchKey="patientName"
+          searchPlaceholder="Cari nama pasien..."
+          isLoading={isLoading}
+        />
+      </div>
+
+      <div className="space-y-2 pt-4">
+        <h2 className="text-sm font-bold text-slate-900">Riwayat Kunjungan</h2>
+        <DataTable
+          columns={columns}
+          data={history}
+          searchKey="patientName"
+          searchPlaceholder="Cari nama pasien atau diagnosa..."
+          isLoading={isLoading}
+        />
+      </div>
     </PageContainer>
   );
 }

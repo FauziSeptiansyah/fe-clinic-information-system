@@ -49,9 +49,13 @@ export default function RegistrationsListPage() {
         const q = row.original;
         return (
           <div>
-            <Link href={ROUTES.PATIENTS.DETAIL(q.patientId)} className="font-semibold text-slate-900 hover:text-blue-600">
-              {q.patientName}
-            </Link>
+            {q.patientId ? (
+              <Link href={ROUTES.PATIENTS.DETAIL(q.patientId)} className="font-semibold text-slate-900 hover:text-blue-600">
+                {q.patientName}
+              </Link>
+            ) : (
+              <span className="font-semibold text-slate-500 italic">{q.patientName}</span>
+            )}
             <p className="text-xs text-slate-500 font-mono">{q.patientMrNumber}</p>
           </div>
         );

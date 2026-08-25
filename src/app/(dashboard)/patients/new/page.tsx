@@ -12,7 +12,9 @@ export default function NewPatientPage() {
         title="Pendaftaran Pasien Baru"
         description="Formulir pencatatan rekam medis pasien baru untuk integrasi layanan poliklinik."
       />
-      <PatientForm mode="create" />
+      <React.Suspense fallback={null}>
+        <PatientForm mode="create" />
+      </React.Suspense>
     </PageContainer>
   );
 }

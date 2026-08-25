@@ -1,8 +1,9 @@
 "use client";
 
 import * as React from "react";
-import { prescriptionService, medicineService } from "@/services";
-import { Prescription, MedicineBatch, PrescriptionStatus } from "@/types";
+import { prescriptionService, medicineService, visitService } from "@/services";
+import { Prescription, MedicineBatch, PrescriptionStatus, Visit } from "@/types";
+import { useAuthStore } from "@/stores/authStore";
 import { PageContainer } from "@/components/common/PageContainer";
 import { PageHeader } from "@/components/common/PageHeader";
 import { Card, CardContent } from "@/components/ui/card";
@@ -15,7 +16,9 @@ import { formatDate, formatDateTime } from "@/lib/utils";
 import { toast } from "sonner";
 
 export default function PharmacyBoardPage() {
+  const user = useAuthStore((s) => s.user);
   const [prescriptions, setPrescriptions] = React.useState<Prescription[]>([]);
+  const [visits, setVisits] = React.useState<Visit[]>([]);
   const [batches, setBatches] = React.useState<MedicineBatch[]>([]);
 
   const [selectedRx, setSelectedRx] = React.useState<Prescription | null>(null);
@@ -23,24 +26,20 @@ export default function PharmacyBoardPage() {
   const [isDispensing, setIsDispensing] = React.useState(false);
 
   const fetchPrescriptions = React.useCallback(() => {
-    Promise.all([prescriptionService.getAll(), medicineService.getBatches()]).then(([rxs, bts]) => {
+    Promise.all([prescriptionService.getAll(), medicineService.getBatches(), visitService.getAll()]).then(([rxs, bts, vs]) => {
       setPrescriptions(rxs);
       setBatches(bts);
+      setVisits(vs);
     });
   }, []);
 
   React.useEffect(() => {
-    let mounted = true;
-    Promise.all([prescriptionService.getAll(), medicineService.getBatches()]).then(([rxs, bts]) => {
-      if (mounted) {
-        setPrescriptions(rxs);
-        setBatches(bts);
-      }
-    });
-    return () => {
-      mounted = false;
-    };
-  }, []);
+    fetchPrescriptions();
+  }, [fetchPrescriptions]);
+
+  // A prescription only becomes pharmacy's job once nurse follow-up has actually routed the
+  // visit to WAITING_PHARMACY — not merely because the doctor attached items to it.
+  const visitsWaitingPharmacy = new Set(visits.filter((v) => v.status === "WAITING_PHARMACY").map((v) => v.id));
 
   const handleOpenDispense = (rx: Prescription) => {
     setSelectedRx(rx);
@@ -58,7 +57,7 @@ export default function PharmacyBoardPage() {
     if (!selectedRx) return;
     try {
       setIsDispensing(true);
-      await prescriptionService.dispense(selectedRx.id, "apt. Dimas Pratama", batchAllocations);
+      await prescriptionService.dispense(selectedRx.id, user?.name || "Apoteker", batchAllocations);
       toast.success(`Obat untuk ${selectedRx.patientName} berhasil disiapkan dan diserahkan!`);
       setSelectedRx(null);
       fetchPrescriptions();
@@ -83,7 +82,7 @@ export default function PharmacyBoardPage() {
     }
   };
 
-  const pendingList = prescriptions.filter((r) => r.status === "PENDING");
+  const pendingList = prescriptions.filter((r) => r.status === "PENDING" && visitsWaitingPharmacy.has(r.visitId));
   const processingList = prescriptions.filter((r) => r.status === "PROCESSING");
   const readyList = prescriptions.filter((r) => r.status === "READY");
   const completedList = prescriptions.filter((r) => r.status === "COMPLETED");

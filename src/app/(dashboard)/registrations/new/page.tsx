@@ -9,14 +9,16 @@ export default function NewRegistrationPage() {
   return (
     <PageContainer>
       <PageHeader
-        title="Alur Pendaftaran & Ambil Nomor Antrian"
-        description="Pilih pasien, poliklinik tujuan, dokter, dan cetak tiket nomor antrian."
+        title="Ambil Nomor Antrian (Walk-in)"
+        description="Untuk pasien yang datang langsung ke loket. Data pasien langsung diteruskan ke perawat."
       />
       <React.Suspense fallback={<LoadingState title="Memuat form pendaftaran..." />}>
         <RegistrationForm
           cancelHref={ROUTES.REGISTRATIONS.LIST}
           continueHref={ROUTES.QUEUES.LIST}
           continueLabel="Lanjut ke Papan Antrian"
+          source="STAFF"
+          createVisitImmediately
         />
       </React.Suspense>
     </PageContainer>

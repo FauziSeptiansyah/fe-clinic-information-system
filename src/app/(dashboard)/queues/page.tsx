@@ -4,7 +4,7 @@ import * as React from "react";
 import Link from "next/link";
 import { useQueueStore } from "@/stores/queueStore";
 import { queueService } from "@/services";
-import { Queue, QueueStatus } from "@/types";
+import { Queue } from "@/types";
 import { PageContainer } from "@/components/common/PageContainer";
 import { PageHeader } from "@/components/common/PageHeader";
 import { Card, CardContent } from "@/components/ui/card";
@@ -15,21 +15,38 @@ import { UserAvatar } from "@/components/common/Displays";
 import { EmptyQueueArt } from "@/components/illustrations/EmptyQueueArt";
 import {
   Volume2,
-  Play,
-  SkipForward,
-  CheckCircle,
+  UserCheck2,
+  UserX,
   Tv,
   Plus,
   RefreshCw,
-  Stethoscope,
+  Globe,
+  MonitorSmartphone,
+  UserRound,
 } from "lucide-react";
 import { toast } from "sonner";
 import { ROUTES } from "@/config/routes";
 import { useQueueTimeoutWatcher } from "@/hooks/useQueueTimeoutWatcher";
 import { QUEUE_CALL_TIMEOUT_MINUTES, QUEUE_MAX_CALL_ATTEMPTS } from "@/config/queueConfig";
 
+const SOURCE_META: Record<Queue["source"], { label: string; icon: typeof Globe }> = {
+  ONLINE: { label: "Online", icon: Globe },
+  KIOSK: { label: "Kiosk", icon: MonitorSmartphone },
+  STAFF: { label: "Loket", icon: UserRound },
+};
+
+function SourceBadge({ source }: { source: Queue["source"] }) {
+  const meta = SOURCE_META[source];
+  return (
+    <Badge variant="outline" className="text-[10px] gap-1 font-medium text-slate-500">
+      <meta.icon className="h-3 w-3" />
+      {meta.label}
+    </Badge>
+  );
+}
+
 export default function QueuesBoardPage() {
-  const { queues, setQueues, updateQueueStatus } = useQueueStore();
+  const { queues, setQueues, updateQueue } = useQueueStore();
   const [selectedDepartment, setSelectedDepartment] = React.useState<string>("ALL");
   useQueueTimeoutWatcher();
 
@@ -42,19 +59,24 @@ export default function QueuesBoardPage() {
     fetchQueues();
   }, [fetchQueues]);
 
-  const handleAction = async (queueId: string, action: QueueStatus, label: string) => {
+  const handleCall = async (queue: Queue) => {
     try {
-      await queueService.updateStatus(queueId, action);
-      updateQueueStatus(queueId, action);
-      toast.success(`Antrian berhasil di-${label}.`);
+      const updated = await queueService.callQueue(queue.id);
+      updateQueue(updated);
+      toast.success(`Memanggil nomor antrian ${queue.queueNumber} menuju ${queue.departmentName}.`);
     } catch {
-      toast.error("Gagal memperbarui status antrian.");
+      toast.error("Gagal memanggil antrian.");
     }
   };
 
-  const handleCallAudio = (queue: Queue) => {
-    handleAction(queue.id, "CALLED", "panggil");
-    toast.info(`Memanggil nomor antrian: ${queue.queueNumber} menuju ${queue.departmentName}`);
+  const handleNoShow = async (queue: Queue) => {
+    try {
+      const updated = await queueService.markNoShow(queue.id);
+      updateQueue(updated);
+      toast.info(`Antrian ${queue.queueNumber} ditandai tidak hadir.`);
+    } catch {
+      toast.error("Gagal memperbarui status antrian.");
+    }
   };
 
   const departments = Array.from(new Set(queues.map((q) => q.departmentName)));
@@ -64,15 +86,15 @@ export default function QueuesBoardPage() {
     return true;
   });
 
-  const waitingList = filteredQueues.filter((q) => q.status === "WAITING" || q.status === "CALLED");
-  const inServiceList = filteredQueues.filter((q) => q.status === "IN_SERVICE");
-  const completedList = filteredQueues.filter((q) => q.status === "COMPLETED" || q.status === "SKIPPED");
+  const waitingList = filteredQueues.filter((q) => q.status === "WAITING");
+  const processingList = filteredQueues.filter((q) => q.status === "CALLED" || q.status === "IN_SERVICE");
+  const doneList = filteredQueues.filter((q) => q.status === "COMPLETED" || q.status === "NO_SHOW" || q.status === "CANCELLED");
 
   return (
     <PageContainer>
       <PageHeader
-        title="Papan Antrian Poliklinik (Live Queue)"
-        description="Kelola panggilan pasien, mulai pemeriksaan, dan koordinasi antrian poli secara real-time."
+        title="Customer Service — Antrean Depan"
+        description="Panggil nomor antrean, lalu identifikasi & lengkapi data pasien sebelum diteruskan ke perawat."
         actions={
           <div className="flex items-center gap-2">
             <Button variant="outline" size="sm" onClick={fetchQueues} className="text-xs">
@@ -88,7 +110,7 @@ export default function QueuesBoardPage() {
             <Link href={ROUTES.REGISTRATIONS.NEW}>
               <Button size="sm" className="text-xs font-semibold shadow-xs">
                 <Plus className="h-3.5 w-3.5 mr-1" />
-                Ambil Nomor Antrian
+                Ambil Nomor (Walk-in)
               </Button>
             </Link>
           </div>
@@ -121,17 +143,17 @@ export default function QueuesBoardPage() {
         })}
       </div>
 
-      {/* 3 Column Kanban Board: Waiting -> In Service -> Completed */}
+      {/* 3 Column Board: Menunggu -> Dipanggil/Diproses -> Selesai */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {/* Column 1: Menunggu & Dipanggil */}
+        {/* Column 1: Menunggu Dipanggil */}
         <div className="space-y-3">
           <div className="p-3 rounded-lg bg-amber-50 border border-amber-200 space-y-1">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-bold text-amber-900 uppercase">Menunggu / Dipanggil</span>
+              <span className="text-xs font-bold text-amber-900 uppercase">Menunggu Dipanggil</span>
               <Badge variant="warning" className="text-xs">{waitingList.length}</Badge>
             </div>
             <p className="text-[10px] text-amber-700">
-              Panggil ulang otomatis tiap {QUEUE_CALL_TIMEOUT_MINUTES} menit, dilewati setelah {QUEUE_MAX_CALL_ATTEMPTS}x tidak direspon.
+              Panggil ulang otomatis tiap {QUEUE_CALL_TIMEOUT_MINUTES} menit, tidak hadir setelah {QUEUE_MAX_CALL_ATTEMPTS}x tidak direspon.
             </p>
           </div>
 
@@ -147,51 +169,28 @@ export default function QueuesBoardPage() {
                   <CardContent className="p-4 space-y-3">
                     <div className="flex items-center justify-between">
                       <span className="text-xl font-extrabold text-blue-600 font-mono">{q.queueNumber}</span>
-                      <div className="flex items-center gap-1.5">
-                        {q.status === "CALLED" && (q.callCount || 0) > 0 && (
-                          <Badge variant="outline" className="text-[10px] text-amber-700 border-amber-300">
-                            Panggilan ke-{q.callCount}/{QUEUE_MAX_CALL_ATTEMPTS}
-                          </Badge>
-                        )}
-                        <StatusBadge status={q.status} type="queue" />
-                      </div>
+                      <SourceBadge source={q.source} />
                     </div>
 
                     <div className="flex items-center gap-3">
                       <UserAvatar name={q.patientName} size="md" />
                       <div className="min-w-0">
-                        <p className="text-sm font-bold text-slate-900 truncate">{q.patientName}</p>
+                        <p className={"text-sm font-bold truncate " + (q.patientId ? "text-slate-900" : "text-slate-500 italic")}>
+                          {q.patientName}
+                        </p>
                         <p className="text-xs text-slate-500 font-mono">{q.patientMrNumber} • {q.payerType}</p>
                         <p className="text-xs text-slate-700 mt-1 truncate">{q.departmentName} — {q.doctorName}</p>
                       </div>
                     </div>
 
-                    <div className="pt-2 border-t border-slate-100 flex items-center justify-between gap-1.5">
+                    <div className="pt-2 border-t border-slate-100">
                       <Button
                         size="sm"
-                        variant="outline"
-                        onClick={() => handleCallAudio(q)}
-                        className="text-xs h-8 flex-1 text-cyan-700 border-cyan-200 hover:bg-cyan-50"
+                        onClick={() => handleCall(q)}
+                        className="text-xs h-8 w-full bg-blue-600 hover:bg-blue-700 font-semibold"
                       >
                         <Volume2 className="h-3.5 w-3.5 mr-1" />
                         Panggil
-                      </Button>
-                      <Button
-                        size="sm"
-                        onClick={() => handleAction(q.id, "IN_SERVICE", "mulai periksa")}
-                        className="text-xs h-8 flex-1 bg-blue-600 hover:bg-blue-700 font-semibold"
-                      >
-                        <Play className="h-3.5 w-3.5 mr-1" />
-                        Periksa
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={() => handleAction(q.id, "SKIPPED", "lewati")}
-                        className="text-xs h-8 px-2 text-slate-500"
-                        title="Lewati"
-                      >
-                        <SkipForward className="h-3.5 w-3.5" />
                       </Button>
                     </div>
                   </CardContent>
@@ -201,50 +200,62 @@ export default function QueuesBoardPage() {
           </div>
         </div>
 
-        {/* Column 2: Sedang Dalam Pemeriksaan */}
+        {/* Column 2: Dipanggil / Sedang Diproses CS */}
         <div className="space-y-3">
-          <div className="flex items-center justify-between p-3 rounded-lg bg-blue-50 border border-blue-200">
-            <span className="text-xs font-bold text-blue-900 uppercase">Sedang Diperiksa</span>
-            <Badge variant="default" className="text-xs">{inServiceList.length}</Badge>
+          <div className="flex items-center justify-between p-3 rounded-lg bg-cyan-50 border border-cyan-200">
+            <span className="text-xs font-bold text-cyan-900 uppercase">Dipanggil / Diproses</span>
+            <Badge variant="info" className="text-xs">{processingList.length}</Badge>
           </div>
 
           <div className="space-y-3 min-h-[400px]">
-            {inServiceList.length === 0 ? (
+            {processingList.length === 0 ? (
               <div className="p-8 text-center text-xs text-slate-400 border border-dashed rounded-lg">
-                Tidak ada pasien sedang diperiksa
+                Tidak ada pasien yang sedang dipanggil
               </div>
             ) : (
-              inServiceList.map((q) => (
-                <Card key={q.id} className="shadow-xs border-blue-200 bg-blue-50/20">
+              processingList.map((q) => (
+                <Card key={q.id} className="shadow-xs border-cyan-200 bg-cyan-50/20">
                   <CardContent className="p-4 space-y-3">
                     <div className="flex items-center justify-between">
-                      <span className="text-xl font-extrabold text-blue-700 font-mono">{q.queueNumber}</span>
-                      <StatusBadge status={q.status} type="queue" />
+                      <span className="text-xl font-extrabold text-cyan-700 font-mono">{q.queueNumber}</span>
+                      <div className="flex items-center gap-1.5">
+                        {(q.callCount || 0) > 0 && (
+                          <Badge variant="outline" className="text-[10px] text-amber-700 border-amber-300">
+                            Panggilan ke-{q.callCount}/{QUEUE_MAX_CALL_ATTEMPTS}
+                          </Badge>
+                        )}
+                        <SourceBadge source={q.source} />
+                      </div>
                     </div>
 
                     <div className="flex items-center gap-3">
-                      <UserAvatar name={q.patientName} size="md" className="ring-2 ring-blue-300" />
+                      <UserAvatar name={q.patientName} size="md" className="ring-2 ring-cyan-300" />
                       <div className="min-w-0">
-                        <p className="text-sm font-bold text-slate-900 truncate">{q.patientName}</p>
+                        <p className={"text-sm font-bold truncate " + (q.patientId ? "text-slate-900" : "text-slate-500 italic")}>
+                          {q.patientName}
+                        </p>
                         <p className="text-xs text-slate-500 truncate">{q.departmentName} • {q.doctorName}</p>
+                        {!q.patientId && (
+                          <p className="text-[11px] text-amber-700 font-medium mt-0.5">Belum teridentifikasi</p>
+                        )}
                       </div>
                     </div>
 
                     <div className="pt-2 border-t border-slate-100 flex items-center gap-2">
-                      <Link href={ROUTES.VISITS.LIST} className="flex-1">
+                      <Link href={ROUTES.QUEUES.RECEIVE(q.id)} className="flex-1">
                         <Button size="sm" variant="default" className="w-full text-xs h-8 font-semibold">
-                          <Stethoscope className="h-3.5 w-3.5 mr-1" />
-                          Buka SOAP Rekam Medis
+                          <UserCheck2 className="h-3.5 w-3.5 mr-1" />
+                          Terima Pasien
                         </Button>
                       </Link>
                       <Button
                         size="sm"
                         variant="outline"
-                        onClick={() => handleAction(q.id, "COMPLETED", "selesaikan")}
-                        className="text-xs h-8 text-emerald-700 border-emerald-300 hover:bg-emerald-50"
+                        onClick={() => handleNoShow(q)}
+                        className="text-xs h-8 text-slate-500 border-slate-300 hover:bg-slate-50"
+                        title="Tandai Tidak Hadir"
                       >
-                        <CheckCircle className="h-3.5 w-3.5 mr-1" />
-                        Selesai
+                        <UserX className="h-3.5 w-3.5" />
                       </Button>
                     </div>
                   </CardContent>
@@ -254,20 +265,20 @@ export default function QueuesBoardPage() {
           </div>
         </div>
 
-        {/* Column 3: Selesai / Dilewati */}
+        {/* Column 3: Selesai / Tidak Hadir / Batal */}
         <div className="space-y-3">
           <div className="flex items-center justify-between p-3 rounded-lg bg-slate-100 border border-slate-200">
-            <span className="text-xs font-bold text-slate-700 uppercase">Selesai / Dilewati</span>
-            <Badge variant="secondary" className="text-xs">{completedList.length}</Badge>
+            <span className="text-xs font-bold text-slate-700 uppercase">Selesai Diproses</span>
+            <Badge variant="secondary" className="text-xs">{doneList.length}</Badge>
           </div>
 
           <div className="space-y-3 min-h-[400px]">
-            {completedList.length === 0 ? (
+            {doneList.length === 0 ? (
               <div className="p-8 text-center text-xs text-slate-400 border border-dashed rounded-lg">
-                Belum ada antrian selesai
+                Belum ada antrian yang selesai diproses
               </div>
             ) : (
-              completedList.slice(0, 8).map((q) => (
+              doneList.slice(0, 8).map((q) => (
                 <Card key={q.id} className="shadow-xs border-slate-200 opacity-80">
                   <CardContent className="p-3 space-y-1">
                     <div className="flex items-center justify-between">

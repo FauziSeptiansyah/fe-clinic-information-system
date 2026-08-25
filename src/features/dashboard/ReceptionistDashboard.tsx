@@ -45,13 +45,13 @@ export function ReceptionistDashboard({ user }: { user: User | null }) {
       <WelcomeBanner
         userName={user?.name || "Resepsionis"}
         role="RECEPTIONIST"
-        subtitle="Pendaftaran & Loket Depan Klinik Pratama Sehat Bersama"
+        subtitle="Customer Service — Loket Depan Klinik Pratama Sehat Bersama"
         actions={
           <>
             <Link href={ROUTES.REGISTRATIONS.NEW}>
               <Button size="sm" variant="secondary" className="bg-white text-blue-900 hover:bg-blue-50 font-semibold text-xs shadow-xs">
                 <Plus className="h-4 w-4 mr-1.5" />
-                Daftar Pasien
+                Ambil Nomor (Walk-in)
               </Button>
             </Link>
             <Link href={ROUTES.QUEUES.DISPLAY}>
@@ -82,13 +82,13 @@ export function ReceptionistDashboard({ user }: { user: User | null }) {
             <div>
               <CardTitle className="text-base font-bold text-slate-900 flex items-center gap-2">
                 <ListOrdered className="h-4 w-4 text-blue-600" />
-                Antrian Poliklinik Saat Ini
+                Antrean Depan Saat Ini
               </CardTitle>
-              <CardDescription className="text-xs text-slate-500">Kelola panggilan & status antrian pasien</CardDescription>
+              <CardDescription className="text-xs text-slate-500">Panggil & identifikasi pasien sebelum diteruskan ke perawat</CardDescription>
             </div>
             <Link href={ROUTES.QUEUES.LIST}>
               <Button variant="ghost" size="sm" className="text-xs text-blue-600 hover:text-blue-700">
-                Kelola Antrian <ArrowRight className="h-3.5 w-3.5 ml-1" />
+                Buka Papan CS <ArrowRight className="h-3.5 w-3.5 ml-1" />
               </Button>
             </Link>
           </CardHeader>
@@ -157,8 +157,8 @@ export function ReceptionistDashboard({ user }: { user: User | null }) {
           <QuickActionsCard
             title="Aksi Cepat Loket"
             actions={[
-              { label: "Registrasi Pasien Baru", href: ROUTES.REGISTRATIONS.NEW, icon: Plus, iconClassName: "text-blue-600" },
-              { label: "Kelola Antrian", href: ROUTES.QUEUES.LIST, icon: ListOrdered, iconClassName: "text-emerald-600" },
+              { label: "Ambil Nomor (Walk-in)", href: ROUTES.REGISTRATIONS.NEW, icon: Plus, iconClassName: "text-blue-600" },
+              { label: "Papan Customer Service", href: ROUTES.QUEUES.LIST, icon: ListOrdered, iconClassName: "text-emerald-600" },
               { label: "Data Pasien", href: ROUTES.PATIENTS.LIST, icon: Users, iconClassName: "text-violet-600" },
               { label: "Konfirmasi Perubahan Data", href: ROUTES.PATIENTS.CHANGE_REQUESTS, icon: ClipboardCheck, iconClassName: "text-amber-600" },
             ]}

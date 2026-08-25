@@ -6,9 +6,11 @@ import {
   Procedure,
   Payer,
   PayerType,
-  VitalSigns,
+  QueueSource,
   Queue,
+  QueueStatus,
   Visit,
+  NurseAssessment,
   MedicalRecord,
   Prescription,
   PrescriptionItem,
@@ -27,7 +29,6 @@ import {
   AuditLog,
   User,
   Role,
-  QueueStatus,
   PrescriptionStatus,
   PatientChangeRequest,
 } from "@/types";
@@ -245,43 +246,66 @@ export const doctorService = {
   },
 };
 
-// 3. Queue & Registration Service
+// 3. Queue Service — the ONLY place a queue number is minted, regardless of where the
+// request comes from (online patient portal, in-clinic kiosk, or staff at the front desk).
+// It only ever produces a bare Queue entry (number, source, service/poli, status) — never
+// medical data and never a Visit. A Visit is created separately once reception identifies
+// the patient (see visitService.createFromQueue).
+function transitionQueueStatus(id: string, status: QueueStatus): Queue {
+  const index = queues.findIndex((q) => q.id === id);
+  if (index === -1) throw new Error("Antrian tidak ditemukan");
+  const now = new Date().toISOString();
+  queues[index] = {
+    ...queues[index],
+    status,
+    calledAt: status === "CALLED" ? now : queues[index].calledAt,
+    callCount: status === "CALLED" ? (queues[index].callCount || 0) + 1 : queues[index].callCount,
+    serviceStartedAt: status === "IN_SERVICE" ? now : queues[index].serviceStartedAt,
+    completedAt: status === "COMPLETED" ? now : queues[index].completedAt,
+  };
+  auditLogService.log("UPDATE_QUEUE_STATUS", "QUEUE", id, "Status antrian " + queues[index].queueNumber + " menjadi " + status);
+  return queues[index];
+}
+
 export const queueService = {
   async getAll(): Promise<Queue[]> {
     return simulateNetwork(queues);
   },
-  async createRegistration(data: {
-    patientId: string;
+  async getById(id: string): Promise<Queue | null> {
+    const queue = queues.find((q) => q.id === id) || null;
+    return simulateNetwork(queue);
+  },
+  async createQueue(data: {
+    source: QueueSource;
+    /** Null for a kiosk queue taken before the patient has been identified. */
+    patientId: string | null;
     departmentId: string;
     doctorId: string;
     serviceId: string;
     payerType: PayerType;
-    registrationDate: string;
-    complaint: string;
-    notes?: string;
-  }): Promise<{ queue: Queue; visit: Visit }> {
-    const patient = patients.find((p) => p.id === data.patientId);
+  }): Promise<Queue> {
     const department = departments.find((d) => d.id === data.departmentId);
     const doctor = doctors.find((d) => d.id === data.doctorId);
     const service = services.find((s) => s.id === data.serviceId);
-
-    if (!patient || !department || !doctor || !service) {
-      throw new Error("Data referensi pendaftaran tidak valid");
+    if (!department || !doctor || !service) {
+      throw new Error("Data referensi antrian tidak valid");
+    }
+    const patient = data.patientId ? patients.find((p) => p.id === data.patientId) : null;
+    if (data.patientId && !patient) {
+      throw new Error("Pasien tidak ditemukan");
     }
 
     const deptPrefix = department.code.charAt(0).toUpperCase();
     const countDeptQueues = queues.filter((q) => q.departmentId === department.id).length + 1;
     const queueNumber = deptPrefix + "-" + String(countDeptQueues).padStart(3, "0");
 
-    const queueId = generateId("q");
-    const visitId = generateId("vst");
-
     const newQueue: Queue = {
-      id: queueId,
+      id: generateId("q"),
       queueNumber,
-      patientId: patient.id,
-      patientName: patient.fullName,
-      patientMrNumber: patient.mrNumber,
+      source: data.source,
+      patientId: patient?.id ?? null,
+      patientName: patient?.fullName || "Pasien Baru (Kiosk)",
+      patientMrNumber: patient?.mrNumber || "-",
       departmentId: department.id,
       departmentName: department.name,
       doctorId: doctor.id,
@@ -293,71 +317,64 @@ export const queueService = {
       waitingTime: "1 mnt",
       createdAt: new Date().toISOString(),
     };
-
-    const newVisit: Visit = {
-      id: visitId,
-      queueId: queueId,
-      queueNumber: queueNumber,
-      patientId: patient.id,
-      patientName: patient.fullName,
-      patientMrNumber: patient.mrNumber,
-      patientGender: patient.gender,
-      patientAge: 30,
-      doctorId: doctor.id,
-      doctorName: doctor.name,
-      departmentId: department.id,
-      departmentName: department.name,
-      serviceId: service.id,
-      serviceName: service.name,
-      payerType: data.payerType,
-      registrationDate: data.registrationDate,
-      status: "REGISTERED",
-      complaint: data.complaint,
-      notes: data.notes,
-      createdAt: new Date().toISOString(),
-    };
-
     queues.unshift(newQueue);
-    visits.unshift(newVisit);
-
-    patient.lastVisit = data.registrationDate;
 
     auditLogService.log(
-      "REGISTER_PATIENT",
-      "REGISTRATION",
-      queueId,
-      "Pendaftaran pasien " + patient.fullName + " ke " + department.name + " no antrian " + queueNumber
+      "CREATE_QUEUE",
+      "QUEUE",
+      newQueue.id,
+      "Nomor antrian " + queueNumber + " diambil (" + data.source + ") untuk " + department.name
     );
-
-    return simulateNetwork({ queue: newQueue, visit: newVisit });
+    return simulateNetwork(newQueue);
   },
-  async updateStatus(queueId: string, status: QueueStatus): Promise<Queue> {
-    const index = queues.findIndex((q) => q.id === queueId);
-    if (index === -1) throw new Error("Antrian tidak ditemukan");
-
-    const now = new Date().toISOString();
-    queues[index] = {
-      ...queues[index],
-      status,
-      calledAt: status === "CALLED" ? now : queues[index].calledAt,
-      callCount: status === "CALLED" ? (queues[index].callCount || 0) + 1 : queues[index].callCount,
-      serviceStartedAt: status === "IN_SERVICE" ? now : queues[index].serviceStartedAt,
-      completedAt: status === "COMPLETED" ? now : queues[index].completedAt,
-    };
-
-    const visitIndex = visits.findIndex((v) => v.queueId === queueId);
-    if (visitIndex !== -1) {
-      if (status === "IN_SERVICE") visits[visitIndex].status = "IN_EXAMINATION";
-      if (status === "COMPLETED") visits[visitIndex].status = "COMPLETED";
-      if (status === "CANCELLED") visits[visitIndex].status = "CANCELLED";
+  async callQueue(id: string): Promise<Queue> {
+    return simulateNetwork(transitionQueueStatus(id, "CALLED"));
+  },
+  /** Reception has opened this entry and is actively identifying/completing the patient. */
+  async startQueue(id: string): Promise<Queue> {
+    return simulateNetwork(transitionQueueStatus(id, "IN_SERVICE"));
+  },
+  /** Reception has finished handing the patient off into the clinical pipeline (a Visit now exists). */
+  async completeQueue(id: string, visitId?: string): Promise<Queue> {
+    const updated = transitionQueueStatus(id, "COMPLETED");
+    const index = queues.findIndex((q) => q.id === id);
+    if (visitId && index !== -1) {
+      queues[index] = { ...queues[index], visitId };
     }
-
-    auditLogService.log("UPDATE_QUEUE_STATUS", "QUEUE", queueId, "Update status antrian " + queues[index].queueNumber + " menjadi " + status);
+    return simulateNetwork(queues[index] || updated);
+  },
+  async cancelQueue(id: string): Promise<Queue> {
+    return simulateNetwork(transitionQueueStatus(id, "CANCELLED"));
+  },
+  async markNoShow(id: string): Promise<Queue> {
+    return simulateNetwork(transitionQueueStatus(id, "NO_SHOW"));
+  },
+  /** Reception has identified the patient behind a previously-unidentified kiosk queue entry. */
+  async identifyPatient(id: string, patientId: string): Promise<Queue> {
+    const index = queues.findIndex((q) => q.id === id);
+    if (index === -1) throw new Error("Antrian tidak ditemukan");
+    const patient = patients.find((p) => p.id === patientId);
+    if (!patient) throw new Error("Pasien tidak ditemukan");
+    queues[index] = { ...queues[index], patientId: patient.id, patientName: patient.fullName, patientMrNumber: patient.mrNumber };
     return simulateNetwork(queues[index]);
   },
 };
 
-// 4. Visit & Medical Examination Service
+function calculateAge(birthDate?: string): number {
+  if (!birthDate) return 30;
+  const dob = new Date(birthDate);
+  if (Number.isNaN(dob.getTime())) return 30;
+  const now = new Date();
+  let age = now.getFullYear() - dob.getFullYear();
+  const monthDiff = now.getMonth() - dob.getMonth();
+  if (monthDiff < 0 || (monthDiff === 0 && now.getDate() < dob.getDate())) age--;
+  return age >= 0 ? age : 30;
+}
+
+// 4. Visit / Encounter Service — one Visit per queue entry, moving stage by stage through
+// the pipeline (Reception -> Nurse -> Doctor -> Follow-up -> Pharmacy/Cashier). Each save*
+// method below is owned by exactly one role and only ever writes its own sub-record; data
+// from earlier stages is carried along untouched for the next role to read.
 export const visitService = {
   async getAll(): Promise<Visit[]> {
     return simulateNetwork(visits);
@@ -366,21 +383,90 @@ export const visitService = {
     const visit = visits.find((v) => v.id === id) || null;
     return simulateNetwork(visit);
   },
-  async saveExamination(
+  /** Reception identifies/completes the patient behind a queue entry and hands off to Nurse. */
+  async createFromQueue(queueId: string, patientId: string, receivedBy?: string): Promise<Visit> {
+    const queueIndex = queues.findIndex((q) => q.id === queueId);
+    if (queueIndex === -1) throw new Error("Antrian tidak ditemukan");
+    const queue = queues[queueIndex];
+    const patient = patients.find((p) => p.id === patientId);
+    if (!patient) throw new Error("Pasien tidak ditemukan");
+
+    const visitId = generateId("vst");
+    const registrationDate = new Date().toISOString().split("T")[0];
+    const newVisit: Visit = {
+      id: visitId,
+      queueId: queue.id,
+      queueNumber: queue.queueNumber,
+      source: queue.source,
+      patientId: patient.id,
+      patientName: patient.fullName,
+      patientMrNumber: patient.mrNumber,
+      patientGender: patient.gender,
+      patientAge: calculateAge(patient.birthDate),
+      doctorId: queue.doctorId,
+      doctorName: queue.doctorName,
+      departmentId: queue.departmentId,
+      departmentName: queue.departmentName,
+      serviceId: queue.serviceId,
+      serviceName: queue.serviceName,
+      payerType: queue.payerType,
+      registrationDate,
+      status: "WAITING_NURSE",
+      createdAt: new Date().toISOString(),
+    };
+    visits.unshift(newVisit);
+
+    queues[queueIndex] = {
+      ...queue,
+      patientId: patient.id,
+      patientName: patient.fullName,
+      patientMrNumber: patient.mrNumber,
+      status: "COMPLETED",
+      completedAt: new Date().toISOString(),
+      visitId,
+    };
+    patient.lastVisit = registrationDate;
+
+    auditLogService.log(
+      "CREATE_VISIT",
+      "VISIT",
+      visitId,
+      "Pasien " + patient.fullName + " diterima dari antrian " + queue.queueNumber + " oleh " + (receivedBy || "CS") + ", diteruskan ke perawat"
+    );
+    return simulateNetwork(newVisit);
+  },
+  /** Nurse triage — first clinical data collected for the visit. */
+  async saveNurseAssessment(
+    visitId: string,
+    data: Omit<NurseAssessment, "recordedBy" | "recordedAt">,
+    recordedBy: string
+  ): Promise<Visit> {
+    const index = visits.findIndex((v) => v.id === visitId);
+    if (index === -1) throw new Error("Kunjungan tidak ditemukan");
+    visits[index] = {
+      ...visits[index],
+      nurseAssessment: { ...data, recordedBy, recordedAt: new Date().toISOString() },
+      status: "WAITING_DOCTOR",
+    };
+    auditLogService.log("SAVE_NURSE_ASSESSMENT", "VISIT", visitId, "Pemeriksaan awal perawat selesai untuk " + visits[index].patientName);
+    return simulateNetwork(visits[index]);
+  },
+  /** Doctor examination — diagnosis, treatment, and (optionally) a structured prescription. */
+  async saveDoctorExamination(
     visitId: string,
     data: {
-      complaint: string;
-      historyOfPresentIllness?: string;
-      pastMedicalHistory?: string;
-      allergy?: string;
-      vitalSigns: VitalSigns;
+      anamnesis?: string;
+      examination?: string;
       primaryDiagnosis: string;
       secondaryDiagnosis?: string;
       treatment: string;
-      notes?: string;
+      doctorNotes?: string;
+      needsFollowUp: boolean;
+      followUpInstruction?: string;
       prescriptionItems?: PrescriptionItem[];
-    }
-  ): Promise<{ visit: Visit; prescription?: Prescription; invoice?: Invoice }> {
+    },
+    examinedBy: string
+  ): Promise<{ visit: Visit; prescription?: Prescription; invoice: Invoice }> {
     const visitIndex = visits.findIndex((v) => v.id === visitId);
     if (visitIndex === -1) throw new Error("Kunjungan tidak ditemukan");
 
@@ -405,14 +491,14 @@ export const visitService = {
         departmentName: currentVisit.departmentName,
         items: data.prescriptionItems,
         status: "PENDING",
-        notes: data.notes,
+        notes: data.doctorNotes,
         createdAt: new Date().toISOString(),
       };
       prescriptions.unshift(prescription);
       currentVisit.prescriptionId = rxId;
     }
 
-    // 2. Create Invoice automatically from service + prescription
+    // 2. Create Invoice automatically from the registered service + any prescribed medicine
     const invId = generateId("inv");
     const invCount = invoices.length + 1;
     const invoiceNumber = "INV-" + new Date().toISOString().slice(0, 10).replace(/-/g, "") + "-" + String(invCount).padStart(4, "0");
@@ -461,7 +547,7 @@ export const visitService = {
       discount,
       tax: 0,
       grandTotal,
-      paidAmount: isBpjs ? 0 : 0,
+      paidAmount: 0,
       remainingAmount: isBpjs ? 0 : grandTotal,
       status: isBpjs ? "PAID" : "UNPAID",
       createdAt: new Date().toISOString(),
@@ -469,7 +555,8 @@ export const visitService = {
     invoices.unshift(invoice);
     currentVisit.invoiceId = invId;
 
-    // 3. Save Medical Record
+    // 3. Save a read-only Medical Record snapshot (nurse + doctor data combined)
+    const nurse = currentVisit.nurseAssessment;
     const mrId = generateId("mr");
     const newRecord: MedicalRecord = {
       id: mrId,
@@ -481,43 +568,64 @@ export const visitService = {
       doctorId: currentVisit.doctorId,
       doctorName: currentVisit.doctorName,
       departmentName: currentVisit.departmentName,
-      complaint: data.complaint,
-      vitalSigns: data.vitalSigns,
+      complaint: nurse?.complaint || "-",
+      vitalSigns: {
+        bloodPressure: nurse?.bloodPressure || "-",
+        temperature: nurse?.temperature || 0,
+        pulse: nurse?.pulse || 0,
+        respiration: nurse?.respiration || 0,
+        weight: nurse?.weight || 0,
+        height: nurse?.height || 0,
+      },
       primaryDiagnosis: data.primaryDiagnosis,
       secondaryDiagnosis: data.secondaryDiagnosis,
       treatment: data.treatment,
       prescriptionSummary: data.prescriptionItems?.map((i) => i.medicineName).join(", "),
-      notes: data.notes,
+      notes: data.doctorNotes,
     };
     medicalRecords.unshift(newRecord);
 
-    // 4. Update Visit & Queue
-    currentVisit.status = prescription ? "PHARMACY_WAITING" : "COMPLETED";
-    currentVisit.complaint = data.complaint;
-    currentVisit.historyOfPresentIllness = data.historyOfPresentIllness;
-    currentVisit.pastMedicalHistory = data.pastMedicalHistory;
-    currentVisit.allergy = data.allergy;
-    currentVisit.vitalSigns = data.vitalSigns;
-    currentVisit.primaryDiagnosis = data.primaryDiagnosis;
-    currentVisit.secondaryDiagnosis = data.secondaryDiagnosis;
-    currentVisit.treatment = data.treatment;
-    currentVisit.notes = data.notes;
-    currentVisit.completedAt = new Date().toISOString();
-
-    const qIndex = queues.findIndex((q) => q.id === currentVisit.queueId);
-    if (qIndex !== -1) {
-      queues[qIndex].status = "COMPLETED";
-      queues[qIndex].completedAt = new Date().toISOString();
-    }
+    // 4. Update Visit — hand off to Nurse follow-up
+    currentVisit.doctorExamination = {
+      anamnesis: data.anamnesis,
+      examination: data.examination,
+      primaryDiagnosis: data.primaryDiagnosis,
+      secondaryDiagnosis: data.secondaryDiagnosis,
+      treatment: data.treatment,
+      doctorNotes: data.doctorNotes,
+      hasPrescription: !!prescription,
+      needsFollowUp: data.needsFollowUp,
+      followUpInstruction: data.followUpInstruction,
+      examinedBy,
+      examinedAt: new Date().toISOString(),
+    };
+    currentVisit.status = "WAITING_FOLLOW_UP";
 
     auditLogService.log(
-      "SAVE_EXAMINATION",
+      "SAVE_DOCTOR_EXAMINATION",
       "VISIT",
       visitId,
-      "Pemeriksaan SOAP selesai untuk " + currentVisit.patientName + ", diagnosa: " + data.primaryDiagnosis
+      "Pemeriksaan dokter selesai untuk " + currentVisit.patientName + ", diagnosa: " + data.primaryDiagnosis
     );
 
     return simulateNetwork({ visit: currentVisit, prescription, invoice });
+  },
+  /** Nurse follow-up after the doctor — routes the patient to Pharmacy (if a prescription was made) or straight to the Cashier. */
+  async saveFollowUp(
+    visitId: string,
+    data: { hasFollowUp: boolean; followUpDate?: string; instruction?: string },
+    followedUpBy: string
+  ): Promise<Visit> {
+    const index = visits.findIndex((v) => v.id === visitId);
+    if (index === -1) throw new Error("Kunjungan tidak ditemukan");
+    const hasPrescription = !!visits[index].prescriptionId;
+    visits[index] = {
+      ...visits[index],
+      followUp: { ...data, hasPrescription, followedUpBy, followedUpAt: new Date().toISOString() },
+      status: hasPrescription ? "WAITING_PHARMACY" : "WAITING_CASHIER",
+    };
+    auditLogService.log("SAVE_FOLLOW_UP", "VISIT", visitId, "Tindak lanjut perawat selesai untuk " + visits[index].patientName);
+    return simulateNetwork(visits[index]);
   },
 };
 
@@ -591,9 +699,10 @@ export const prescriptionService = {
     rx.dispensedAt = new Date().toISOString();
     rx.dispensedBy = dispensedBy;
 
+    // Obat sudah diserahkan — visit diteruskan ke kasir untuk pembayaran, BUKAN langsung selesai.
     const vIndex = visits.findIndex((v) => v.id === rx.visitId);
     if (vIndex !== -1) {
-      visits[vIndex].status = "COMPLETED";
+      visits[vIndex].status = "WAITING_CASHIER";
     }
 
     auditLogService.log("DISPENSE_MEDICINE", "PHARMACY", id, "Dispensing obat resep " + rx.prescriptionNumber + " oleh " + dispensedBy);
@@ -843,6 +952,15 @@ export const paymentService = {
       paymentId,
       "Pembayaran invoice " + inv.invoiceNumber + " sebesar Rp " + data.amount.toLocaleString("id-ID") + " via " + data.paymentMethod
     );
+
+    // Lunas — ini satu-satunya tempat yang menutup sebuah visit sebagai COMPLETED.
+    if (remaining === 0 && inv.visitId) {
+      const vIndex = visits.findIndex((v) => v.id === inv.visitId);
+      if (vIndex !== -1) {
+        visits[vIndex].status = "COMPLETED";
+        visits[vIndex].completedAt = new Date().toISOString();
+      }
+    }
 
     return simulateNetwork({ payment: newPayment, invoice: inv });
   },

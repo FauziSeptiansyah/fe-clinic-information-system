@@ -2,6 +2,7 @@ export const ROUTES = {
   PUBLIC: {
     HOME: "/",
     LOGIN: "/login",
+    KIOSK: "/kiosk",
   },
   PATIENT: {
     DASHBOARD: "/patient/dashboard",
@@ -24,6 +25,11 @@ export const ROUTES = {
   QUEUES: {
     LIST: "/queues",
     DISPLAY: "/queue-display",
+    RECEIVE: (id: string) => `/queues/${id}/receive`,
+  },
+  NURSE: {
+    LIST: "/nurse",
+    DETAIL: (id: string) => `/nurse/${id}`,
   },
   VISITS: {
     LIST: "/visits",

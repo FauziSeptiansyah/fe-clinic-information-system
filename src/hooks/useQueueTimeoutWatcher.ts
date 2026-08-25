@@ -17,7 +17,7 @@ import { QUEUE_CALL_TIMEOUT_MINUTES, QUEUE_MAX_CALL_ATTEMPTS } from "@/config/qu
  */
 export function useQueueTimeoutWatcher(enabled: boolean = true) {
   const queues = useQueueStore((s) => s.queues);
-  const updateQueueStatus = useQueueStore((s) => s.updateQueueStatus);
+  const updateQueue = useQueueStore((s) => s.updateQueue);
   const inFlightRef = React.useRef<Set<string>>(new Set());
 
   React.useEffect(() => {
@@ -39,12 +39,12 @@ export function useQueueTimeoutWatcher(enabled: boolean = true) {
         const finish = async () => {
           try {
             if (callCount >= QUEUE_MAX_CALL_ATTEMPTS) {
-              await queueService.updateStatus(q.id, "SKIPPED");
-              updateQueueStatus(q.id, "SKIPPED");
-              toast.info(`Antrian ${q.queueNumber} dilewati otomatis — ${QUEUE_MAX_CALL_ATTEMPTS}x panggilan tidak direspon.`);
+              const updated = await queueService.markNoShow(q.id);
+              updateQueue(updated);
+              toast.info(`Antrian ${q.queueNumber} ditandai tidak hadir otomatis — ${QUEUE_MAX_CALL_ATTEMPTS}x panggilan tidak direspon.`);
             } else {
-              await queueService.updateStatus(q.id, "CALLED");
-              updateQueueStatus(q.id, "CALLED");
+              const updated = await queueService.callQueue(q.id);
+              updateQueue(updated);
               toast.info(`Memanggil ulang nomor ${q.queueNumber} (panggilan ke-${callCount + 1}).`);
             }
           } finally {
@@ -56,5 +56,5 @@ export function useQueueTimeoutWatcher(enabled: boolean = true) {
     }, 5000);
 
     return () => clearInterval(timer);
-  }, [queues, updateQueueStatus, enabled]);
+  }, [queues, updateQueue, enabled]);
 }

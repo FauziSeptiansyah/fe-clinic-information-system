@@ -9,9 +9,9 @@ import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/common/StatusBadge";
 import { WelcomeBanner } from "./WelcomeBanner";
 import { QuickActionsCard } from "./QuickActions";
-import { billingService, paymentService } from "@/services";
+import { billingService, paymentService, visitService } from "@/services";
 import { ROUTES } from "@/config/routes";
-import { Invoice, Payment, User } from "@/types";
+import { Invoice, Payment, User, Visit } from "@/types";
 
 const formatIDR = (value: number) =>
   new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(value);
@@ -19,20 +19,27 @@ const formatIDR = (value: number) =>
 export function CashierDashboard({ user }: { user: User | null }) {
   const [invoices, setInvoices] = React.useState<Invoice[]>([]);
   const [payments, setPayments] = React.useState<Payment[]>([]);
+  const [visits, setVisits] = React.useState<Visit[]>([]);
 
   React.useEffect(() => {
     let cancelled = false;
-    Promise.all([billingService.getAll(), paymentService.getAll()]).then(([inv, pays]) => {
+    Promise.all([billingService.getAll(), paymentService.getAll(), visitService.getAll()]).then(([inv, pays, vs]) => {
       if (cancelled) return;
       setInvoices(inv);
       setPayments(pays);
+      setVisits(vs);
     });
     return () => {
       cancelled = true;
     };
   }, []);
 
-  const unpaid = invoices.filter((i) => i.status === "UNPAID" || i.status === "PARTIAL");
+  // Only invoices whose visit has actually reached the cashier stage are "ready to bill" —
+  // a visit still with the nurse or pharmacy isn't payable yet even if its invoice is unpaid.
+  const visitsWaitingCashier = new Set(visits.filter((v) => v.status === "WAITING_CASHIER").map((v) => v.id));
+  const unpaid = invoices.filter(
+    (i) => (i.status === "UNPAID" || i.status === "PARTIAL") && i.visitId && visitsWaitingCashier.has(i.visitId)
+  );
   const receivable = unpaid.reduce((sum, i) => sum + i.remainingAmount, 0);
   const revenueToday = payments.reduce((sum, p) => sum + p.amount, 0);
 

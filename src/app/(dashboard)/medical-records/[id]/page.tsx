@@ -89,10 +89,6 @@ export default function MedicalRecordDetailPage() {
               <span className="text-slate-500 block">Denyut Nadi</span>
               <strong className="text-slate-900">{record.vitalSigns.pulse} x/menit</strong>
             </div>
-            <div className="p-2.5 rounded bg-slate-50 border">
-              <span className="text-slate-500 block">SpO2</span>
-              <strong className="text-slate-900">{record.vitalSigns.spo2} %</strong>
-            </div>
           </div>
         </DetailCard>
 

@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { patientSchema, PatientFormValues } from "@/schemas";
@@ -22,6 +22,11 @@ interface PatientFormProps {
 
 export function PatientForm({ mode, initialData }: PatientFormProps) {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  // Set when this form is opened from another flow (e.g. reception identifying a kiosk
+  // patient) that needs to resume with the newly-created patient instead of landing on
+  // the patient detail page.
+  const returnTo = searchParams.get("returnTo");
   const [isSubmitting, setIsSubmitting] = React.useState(false);
 
   const {
@@ -97,7 +102,11 @@ export function PatientForm({ mode, initialData }: PatientFormProps) {
       if (mode === "create") {
         const newPatient = await patientService.create(values);
         toast.success(`Pasien ${newPatient.fullName} berhasil didaftarkan.`);
-        router.push(ROUTES.PATIENTS.DETAIL(newPatient.id));
+        if (returnTo) {
+          router.push(`${returnTo}?patientId=${newPatient.id}`);
+        } else {
+          router.push(ROUTES.PATIENTS.DETAIL(newPatient.id));
+        }
       } else if (mode === "edit" && initialData) {
         await patientService.update(initialData.id, values);
         toast.success("Data pasien berhasil diperbarui.");

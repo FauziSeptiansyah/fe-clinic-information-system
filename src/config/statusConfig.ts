@@ -37,8 +37,8 @@ export const QUEUE_STATUS_CONFIG: Record<QueueStatus, StatusStyle> = {
     textClass: "text-emerald-700",
     borderClass: "border-emerald-200",
   },
-  SKIPPED: {
-    label: "Dilewati",
+  NO_SHOW: {
+    label: "Tidak Hadir",
     variant: "secondary",
     bgClass: "bg-slate-100",
     textClass: "text-slate-600",
@@ -54,33 +54,47 @@ export const QUEUE_STATUS_CONFIG: Record<QueueStatus, StatusStyle> = {
 };
 
 export const VISIT_STATUS_CONFIG: Record<VisitStatus, StatusStyle> = {
-  REGISTERED: {
-    label: "Terdaftar",
+  WAITING_RECEPTION: {
+    label: "Menunggu Registrasi",
     variant: "warning",
     bgClass: "bg-amber-50",
     textClass: "text-amber-700",
     borderClass: "border-amber-200",
   },
-  IN_EXAMINATION: {
-    label: "Dalam Pemeriksaan",
+  WAITING_NURSE: {
+    label: "Menunggu Perawat",
     variant: "info",
     bgClass: "bg-cyan-50",
     textClass: "text-cyan-700",
     borderClass: "border-cyan-200",
   },
-  EXAMINED: {
-    label: "Selesai Periksa",
+  WAITING_DOCTOR: {
+    label: "Menunggu Dokter",
     variant: "default",
     bgClass: "bg-blue-50",
     textClass: "text-blue-700",
     borderClass: "border-blue-200",
   },
-  PHARMACY_WAITING: {
-    label: "Menunggu Obat",
+  WAITING_FOLLOW_UP: {
+    label: "Menunggu Tindak Lanjut",
+    variant: "info",
+    bgClass: "bg-teal-50",
+    textClass: "text-teal-700",
+    borderClass: "border-teal-200",
+  },
+  WAITING_PHARMACY: {
+    label: "Menunggu Farmasi",
     variant: "warning",
     bgClass: "bg-purple-50",
     textClass: "text-purple-700",
     borderClass: "border-purple-200",
+  },
+  WAITING_CASHIER: {
+    label: "Menunggu Kasir",
+    variant: "warning",
+    bgClass: "bg-orange-50",
+    textClass: "text-orange-700",
+    borderClass: "border-orange-200",
   },
   COMPLETED: {
     label: "Selesai Kunjungan",

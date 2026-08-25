@@ -75,7 +75,7 @@ export const NAVIGATION_CONFIG: NavGroup[] = [
         permissions: ["patients.update"],
       },
       {
-        title: "Antrian Poliklinik",
+        title: "Customer Service (Antrean)",
         href: ROUTES.QUEUES.LIST,
         icon: ListOrdered,
         permissions: ["queues.view"],
@@ -84,6 +84,12 @@ export const NAVIGATION_CONFIG: NavGroup[] = [
         title: "Layar Antrian TV",
         href: ROUTES.QUEUES.DISPLAY,
         icon: Tv,
+      },
+      {
+        title: "Triase & Tindak Lanjut",
+        href: ROUTES.NURSE.LIST,
+        icon: Activity,
+        permissions: ["visits.triage"],
       },
       {
         title: "Kunjungan & Periksa",
