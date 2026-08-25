@@ -9,10 +9,15 @@ import { Building2, ArrowLeft, Clock, Activity, BellRing } from "lucide-react";
 import { MOCK_CLINIC_PROFILE } from "@/mocks";
 import { UserAvatar } from "@/components/common/Displays";
 import { useQueueTimeoutWatcher } from "@/hooks/useQueueTimeoutWatcher";
+import { usePatientAuthStore } from "@/stores/patientAuthStore";
+import { ROUTES } from "@/config/routes";
 
 export default function QueueDisplayTVPage() {
   const { queues, setQueues } = useQueueStore();
   const [currentTime, setCurrentTime] = React.useState("");
+  const patient = usePatientAuthStore((s) => s.patient);
+  // A patient came here from their own page — send them back there, not into the staff dashboard.
+  const backHref = patient ? ROUTES.PUBLIC.TAKE_QUEUE : ROUTES.DASHBOARD;
   useQueueTimeoutWatcher();
 
   React.useEffect(() => {
@@ -50,7 +55,7 @@ export default function QueueDisplayTVPage() {
       {/* Top TV Header */}
       <header className="relative flex items-center justify-between pb-4 border-b border-slate-800">
         <div className="flex items-center gap-3">
-          <Link href="/dashboard" className="h-9 w-9 rounded-lg bg-slate-900 border border-slate-800 flex items-center justify-center text-slate-400 hover:text-white">
+          <Link href={backHref} className="h-9 w-9 rounded-lg bg-slate-900 border border-slate-800 flex items-center justify-center text-slate-400 hover:text-white">
             <ArrowLeft className="h-4 w-4" />
           </Link>
           <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-blue-500 to-blue-700 text-white font-bold shadow-lg shadow-blue-600/30">
