@@ -28,16 +28,14 @@ function LoginPageContent() {
   const login = useAuthStore((state) => state.login);
   const switchRole = useAuthStore((state) => state.switchRole);
   const loginPatient = usePatientAuthStore((state) => state.loginPatient);
-  const loggedInPatient = usePatientAuthStore((state) => state.patient);
 
   const [email, setEmail] = React.useState("admin@kliniksehat.co.id");
   const [password, setPassword] = React.useState("password123");
   const [isLoading, setIsLoading] = React.useState(false);
 
-  React.useEffect(() => {
-    // Already signed in as a patient (e.g. via browser back) — this form is stale, forward them on.
-    if (loggedInPatient) router.replace(redirectTo || ROUTES.PATIENT.DASHBOARD);
-  }, [loggedInPatient, router, redirectTo]);
+  // Deliberately no "already logged in, redirect away" guard here: staff and patient auth
+  // are independent, and this form serves both — someone testing as a patient must still be
+  // able to open /login and sign in as staff (or vice versa) without being bounced away.
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
