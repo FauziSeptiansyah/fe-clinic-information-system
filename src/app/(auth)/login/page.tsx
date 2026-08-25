@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useAuthStore, MOCK_USERS } from "@/stores/authStore";
 import { usePatientAuthStore } from "@/stores/patientAuthStore";
@@ -14,14 +14,17 @@ import { Building2, Lock, Mail, ArrowLeft, ShieldCheck, Clock, MapPin, Stethosco
 import { toast } from "sonner";
 import { ROUTES } from "@/config/routes";
 import { ClinicHero } from "@/components/illustrations/ClinicHero";
+import { LoadingState } from "@/components/common/LoadingState";
 import { MOCK_CLINIC_PROFILE, MOCK_PATIENTS } from "@/mocks";
 import { Patient } from "@/types";
 import { UserRound } from "lucide-react";
 
 const DEMO_PATIENTS = MOCK_PATIENTS.filter((p) => ["pat-07", "pat-01"].includes(p.id));
 
-export default function LoginPage() {
+function LoginPageContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const redirectTo = searchParams.get("redirect");
   const login = useAuthStore((state) => state.login);
   const switchRole = useAuthStore((state) => state.switchRole);
   const loginPatient = usePatientAuthStore((state) => state.loginPatient);
@@ -33,8 +36,8 @@ export default function LoginPage() {
 
   React.useEffect(() => {
     // Already signed in as a patient (e.g. via browser back) — this form is stale, forward them on.
-    if (loggedInPatient) router.replace(ROUTES.PUBLIC.TAKE_QUEUE);
-  }, [loggedInPatient, router]);
+    if (loggedInPatient) router.replace(redirectTo || ROUTES.PATIENT.DASHBOARD);
+  }, [loggedInPatient, router, redirectTo]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -50,18 +53,18 @@ export default function LoginPage() {
       login(email);
       toast.success("Berhasil masuk ke sistem manajemen klinik.");
       setIsLoading(false);
-      router.replace(ROUTES.DASHBOARD);
+      router.replace(redirectTo || ROUTES.DASHBOARD);
       return;
     }
 
-    // Patient accounts (self-registered via /daftar-pasien): checked by email + password.
+    // Patient accounts (self-registered via /register): checked by email + password.
     const patients = await patientService.getAll();
     const patientMatch = patients.find((p) => p.email && p.email.toLowerCase() === email.toLowerCase());
     if (patientMatch && patientMatch.password && patientMatch.password === password) {
       loginPatient(patientMatch);
       toast.success(`Selamat datang, ${patientMatch.fullName}!`);
       setIsLoading(false);
-      router.replace(ROUTES.PUBLIC.TAKE_QUEUE);
+      router.replace(redirectTo || ROUTES.PATIENT.DASHBOARD);
       return;
     }
 
@@ -73,14 +76,14 @@ export default function LoginPage() {
     setEmail(selectedUser.email);
     switchRole(selectedUser.role);
     toast.success(`Masuk sebagai: ${selectedUser.name} (${selectedUser.role})`);
-    router.replace(ROUTES.DASHBOARD);
+    router.replace(redirectTo || ROUTES.DASHBOARD);
   };
 
   const handleQuickPatientLogin = (selectedPatient: Patient) => {
     setEmail(selectedPatient.email || "");
     loginPatient(selectedPatient);
     toast.success(`Masuk sebagai pasien: ${selectedPatient.fullName}`);
-    router.replace(ROUTES.PUBLIC.TAKE_QUEUE);
+    router.replace(redirectTo || ROUTES.PATIENT.DASHBOARD);
   };
 
   return (
@@ -198,6 +201,16 @@ export default function LoginPage() {
               </Button>
             </form>
 
+            <p className="text-xs text-slate-500 text-center">
+              Pasien baru?{" "}
+              <Link
+                href={redirectTo ? `${ROUTES.PUBLIC.REGISTER}?redirect=${encodeURIComponent(redirectTo)}` : ROUTES.PUBLIC.REGISTER}
+                className="text-blue-600 font-semibold hover:underline"
+              >
+                Daftar akun pasien
+              </Link>
+            </p>
+
             {/* Quick Demo Role Switcher */}
             <div className="pt-4 border-t border-slate-200">
               <div className="flex items-center gap-1.5 mb-2 text-[11px] font-bold uppercase tracking-wider text-slate-500">
@@ -244,5 +257,13 @@ export default function LoginPage() {
       </div>
       </div>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <React.Suspense fallback={<div className="min-h-screen flex items-center justify-center"><LoadingState title="Memuat..." /></div>}>
+      <LoginPageContent />
+    </React.Suspense>
   );
 }

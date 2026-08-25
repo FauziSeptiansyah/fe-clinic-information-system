@@ -20,7 +20,7 @@ export function PatientNavStatus() {
   if (!patient) {
     return (
       <div className="hidden sm:flex items-center gap-2">
-        <Link href={ROUTES.PUBLIC.TAKE_QUEUE}>
+        <Link href={ROUTES.PATIENT.QUEUE}>
           <Button size="sm" variant="outline" className="font-semibold border-blue-200 text-blue-700 hover:bg-blue-50">
             <Ticket className="h-4 w-4 mr-1.5" />
             Ambil Antrian
@@ -39,7 +39,7 @@ export function PatientNavStatus() {
   return (
     <div className="hidden sm:flex items-center gap-1">
       <Link
-        href={ROUTES.PUBLIC.TAKE_QUEUE}
+        href={ROUTES.PATIENT.DASHBOARD}
         className="flex items-center gap-2 pl-1.5 pr-3 py-1 rounded-full border border-transparent hover:border-slate-200 hover:bg-slate-50 transition-colors"
       >
         <UserAvatar name={patient.fullName} size="sm" />

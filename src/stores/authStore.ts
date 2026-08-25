@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { persist } from "zustand/middleware";
 import { User, Role, Permission } from "@/types";
 import { ROLE_PERMISSIONS, hasPermission } from "@/config/permissionConfig";
 
@@ -88,7 +89,12 @@ interface AuthState {
   can: (permission: Permission) => boolean;
 }
 
-export const useAuthStore = create<AuthState>((set, get) => ({
+// Persisted (like patientAuthStore) so a deliberate role switch — e.g. while testing RBAC —
+// survives a reload or a fresh tab instead of silently resetting to Admin. A truly first-ever
+// visit (nothing in localStorage yet) still starts logged in as Admin for easy testing.
+export const useAuthStore = create<AuthState>()(
+  persist(
+    (set, get) => ({
   user: MOCK_USERS[0], // Default logged in as Admin for easy testing
   role: "ADMIN",
   permissions: ROLE_PERMISSIONS["ADMIN"],
@@ -150,4 +156,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     const { role } = get();
     return hasPermission(role || undefined, permission);
   },
-}));
+    }),
+    { name: "staff-auth-storage", skipHydration: true }
+  )
+);

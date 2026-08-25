@@ -3,6 +3,7 @@
 import * as React from "react";
 import { Sidebar } from "./Sidebar";
 import { Header } from "./Header";
+import { RouteGuard } from "@/components/common/RouteGuard";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = React.useState(false);
@@ -30,7 +31,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       {/* Main Content Area */}
       <div className="flex flex-1 flex-col md:pl-64 min-w-0">
         <Header onMenuClick={() => setIsMobileMenuOpen(true)} />
-        <main className="flex-1 pb-16">{children}</main>
+        <main className="flex-1 pb-16">
+          <RouteGuard>{children}</RouteGuard>
+        </main>
       </div>
     </div>
   );

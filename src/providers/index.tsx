@@ -4,6 +4,7 @@ import * as React from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "sonner";
 import { usePatientAuthStore } from "@/stores/patientAuthStore";
+import { useAuthStore } from "@/stores/authStore";
 import { patientService } from "@/services";
 import { loadSelfRegisteredPatients } from "@/lib/selfRegisteredPatients";
 
@@ -23,6 +24,7 @@ export function AppProviders({ children }: { children: React.ReactNode }) {
   React.useEffect(() => {
     patientService.restoreSelfRegistered(loadSelfRegisteredPatients());
     usePatientAuthStore.persist.rehydrate();
+    useAuthStore.persist.rehydrate();
   }, []);
 
   return (

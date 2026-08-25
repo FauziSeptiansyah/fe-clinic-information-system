@@ -2,8 +2,13 @@ export const ROUTES = {
   PUBLIC: {
     HOME: "/",
     LOGIN: "/login",
-    TAKE_QUEUE: "/ambil-antrian",
-    PATIENT_REGISTER: "/daftar-pasien",
+    REGISTER: "/register",
+  },
+  PATIENT: {
+    DASHBOARD: "/patient/dashboard",
+    QUEUE: "/patient/queue",
+    HISTORY: "/patient/history",
+    PROFILE: "/patient/profile",
   },
   DASHBOARD: "/dashboard",
   PATIENTS: {

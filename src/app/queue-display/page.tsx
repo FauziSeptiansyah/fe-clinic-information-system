@@ -17,7 +17,7 @@ export default function QueueDisplayTVPage() {
   const [currentTime, setCurrentTime] = React.useState("");
   const patient = usePatientAuthStore((s) => s.patient);
   // A patient came here from their own page — send them back there, not into the staff dashboard.
-  const backHref = patient ? ROUTES.PUBLIC.TAKE_QUEUE : ROUTES.DASHBOARD;
+  const backHref = patient ? ROUTES.PATIENT.DASHBOARD : ROUTES.DASHBOARD;
   useQueueTimeoutWatcher();
 
   React.useEffect(() => {

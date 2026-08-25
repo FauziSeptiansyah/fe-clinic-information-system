@@ -124,7 +124,7 @@ export default function LandingPage() {
               </p>
 
               <div className="flex flex-wrap items-center justify-center sm:justify-start gap-3 pt-2">
-                <Link href={ROUTES.PUBLIC.TAKE_QUEUE}>
+                <Link href={ROUTES.PATIENT.QUEUE}>
                   <Button size="lg" className="h-12 px-7 shadow-lg shadow-blue-600/20 font-semibold text-sm">
                     <Ticket className="h-4 w-4 mr-2" />
                     Ambil Nomor Antrian Online

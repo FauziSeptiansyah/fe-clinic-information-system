@@ -29,11 +29,13 @@ export const patientSchema = z.object({
 
 export type PatientFormValues = z.infer<typeof patientSchema>;
 
-export const patientSelfRegisterSchema = patientSchema
-  .extend({
-    // Email is optional on the base patient record (staff may not always have it), but
-    // required here since login for self-service accounts is email + password based.
+// Deliberately minimal: full KYC/medical detail (NIK, address, payer, etc.) is captured
+// later by a receptionist or via the profile page — account sign-up should stay quick.
+export const patientSelfRegisterSchema = z
+  .object({
+    fullName: z.string().min(3, "Nama lengkap minimal 3 karakter"),
     email: z.string().email("Format email wajib diisi dan valid"),
+    phone: z.string().min(8, "Nomor telepon minimal 8 digit").regex(/^[0-9+\-\s]+$/, "Format nomor telepon tidak valid"),
     password: z.string().min(6, "Kata sandi minimal 6 karakter"),
     confirmPassword: z.string().min(6, "Konfirmasi kata sandi minimal 6 karakter"),
   })

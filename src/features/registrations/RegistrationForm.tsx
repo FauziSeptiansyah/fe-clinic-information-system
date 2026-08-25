@@ -10,6 +10,7 @@ import {
   queueService,
 } from "@/services";
 import { Patient, Doctor, Department, Service, Queue, PayerType } from "@/types";
+import { useQueueStore } from "@/stores/queueStore";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -41,6 +42,7 @@ export function RegistrationForm({ cancelHref, continueHref, continueLabel, allo
   const router = useRouter();
   const searchParams = useSearchParams();
   const preselectedPatientId = searchParams.get("patientId");
+  const addQueueToStore = useQueueStore((s) => s.addQueue);
 
   const [patients, setPatients] = React.useState<Patient[]>([]);
   const [departments, setDepartments] = React.useState<Department[]>([]);
@@ -163,6 +165,11 @@ export function RegistrationForm({ cancelHref, continueHref, continueLabel, allo
   };
 
   const goToContinue = () => {
+    // Sync the new queue into the shared store only once the user has actually seen and
+    // dismissed the ticket — doing it earlier can cause a page that reactively shows
+    // "you have an active queue" (like the patient's own queue page) to swap views out
+    // from under the still-open ticket dialog.
+    if (registeredQueue) addQueueToStore(registeredQueue);
     setRegisteredQueue(null);
     router.push(continueHref);
   };

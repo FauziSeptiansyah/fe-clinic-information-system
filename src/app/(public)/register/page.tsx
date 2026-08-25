@@ -1,23 +1,12 @@
-"use client";
-
 import * as React from "react";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Building2, ArrowLeft, UserPlus } from "lucide-react";
 import { PatientSelfRegisterForm } from "@/features/registrations/PatientSelfRegisterForm";
+import { LoadingState } from "@/components/common/LoadingState";
 import { ROUTES } from "@/config/routes";
 import { MOCK_CLINIC_PROFILE } from "@/mocks";
-import { usePatientAuthStore } from "@/stores/patientAuthStore";
 
 export default function PatientRegisterPage() {
-  const router = useRouter();
-  const patient = usePatientAuthStore((s) => s.patient);
-
-  React.useEffect(() => {
-    // Already signed in — no reason to see the registration form again.
-    if (patient) router.replace(ROUTES.PUBLIC.TAKE_QUEUE);
-  }, [patient, router]);
-
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 selection:bg-blue-600 selection:text-white">
       <header className="sticky top-0 z-50 bg-white/95 backdrop-blur-md border-b border-slate-200">
@@ -37,22 +26,23 @@ export default function PatientRegisterPage() {
         </div>
       </header>
 
-      <main className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-6">
+      <main className="max-w-md mx-auto px-4 sm:px-6 py-10 space-y-6">
         <div>
           <div className="inline-flex items-center gap-1.5 text-xs font-bold text-blue-600 bg-blue-50 border border-blue-200 rounded-full px-3 py-1 mb-3">
             <UserPlus className="h-3.5 w-3.5" />
-            Pendaftaran Pasien Baru
-          </div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
             Daftar Akun Pasien
+          </div>
+          <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight">
+            Buat Akun Pasien
           </h1>
           <p className="text-sm text-slate-500 mt-2 leading-relaxed">
-            Lengkapi data diri Anda satu kali untuk membuat Nomor Rekam Medis & akun pasien. Setelah ini Anda bisa
-            langsung ambil nomor antrian, dan masuk kembali kapan saja tanpa mengisi ulang data.
+            Cukup beberapa detik. Setelah ini Anda langsung masuk dan bisa mengambil nomor antrean.
           </p>
         </div>
 
-        <PatientSelfRegisterForm />
+        <React.Suspense fallback={<LoadingState title="Memuat formulir..." />}>
+          <PatientSelfRegisterForm />
+        </React.Suspense>
       </main>
     </div>
   );
